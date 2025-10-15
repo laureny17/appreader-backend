@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "README.md",
+                "file": "design/learning/exercise-0.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "README"
+              "title": "exercise-0"
             }
           }
         ]
@@ -171,6 +171,32 @@
   },
   "active": "60ccb8b74e272dda",
   "lastOpenFiles": [
-    "README.md"
+    "context/design/learning/exercise-0.md/20251015_002619.f072571c.md",
+    "context/design/learning/exercise-0.md/steps/_.78590f80.md",
+    "context/design/learning/exercise-0.md/steps/response.4563598e.md",
+    "context/design/learning/exercise-0.md/steps/prompt.9fa40959.md",
+    "context/design/learning/exercise-0.md/steps/prompt.0ecacf5b.md",
+    "context/design/learning/exercise-0.md/steps/_.e57d04eb.md",
+    "context/design/learning/exercise-0.md/steps",
+    "context/design/learning/exercise-0.md/20251015_002520.976e7875.md",
+    "context/design/learning/exercise-0.md",
+    "design/brainstorming/questioning.md",
+    "design/learning/exercise-0.md",
+    "context/design/brainstorming/questioning.md/20251015_002119.6493dda9.md",
+    "design/learning/understanding-concepts.md",
+    "context/design/brainstorming/questioning.md/20251015_001500.e2599f7d.md",
+    "context/design/brainstorming/questioning.md/steps/prompt.9fa40959.md",
+    "context/design/brainstorming/questioning.md/20251015_001449.0ecacf5b.md",
+    "context/design/brainstorming/questioning.md/20251007_210354.dbfa3313.md",
+    "context/design/brainstorming/questioning.md/20251007_210412.34d993fb.md",
+    "context/design/learning/understanding-concepts.md/20251015_001743.4b245705.md",
+    "context/design/learning/understanding-concepts.md/steps/response.6e77a6aa.md",
+    "context/design/learning/understanding-concepts.md/20251015_001725.38550fa5.md",
+    "context/design/learning/understanding-concepts.md/steps/question.3a67a92b.md",
+    "context/design/concepts/LikertSurvey/LikertSurvey.md/20251007_211929.a7c3ee81.md",
+    "context/design/brainstorming/questioning.md/steps/response.09c0f311.md",
+    "context/design/brainstorming/questioning.md/steps/prompt.0ecacf5b.md",
+    "context/design/concepts/LikertSurvey/testing.md/steps/_.3eb68380.md",
+    "context/design/concepts/LikertSurvey/testing.md/20251007_211454.a9413577.md"
   ]
 }
