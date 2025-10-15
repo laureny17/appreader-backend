@@ -1,0 +1,17 @@
+running 7 tests from ./src/concepts/ApplicationAssignments/ApplicationAssignmentsConcept.test.ts
+ApplicationAssignmentsConcept: Principle Fulfillment - Full User Assignment Flow ...
+  1. Initial setup: Register applications for an event ... ok (247ms)
+  2. User Alice gets her first assignment (APP_ALPHA) ... ok (118ms)
+  3. User Alice cannot get another assignment while one is active ... ok (20ms)
+  4. User Alice submits APP_ALPHA ... ok (123ms)
+  5. User Bob gets an assignment (APP_BETA) - demonstrating prioritization for new users ... ok (80ms)
+  6. User Alice gets her next assignment (APP_GAMMA) - previously read apps excluded ... ok (83ms)
+  7. User Alice skips APP_GAMMA ... ok (122ms)
+  8. User Alice cannot get any more assignments (all eligible apps for her are read/skipped) ... ok (56ms)
+ApplicationAssignmentsConcept: Principle Fulfillment - Full User Assignment Flow ... ok (1s)
+ApplicationAssignmentsConcept: registerApplicationForAssignment - Idempotency ... ok (536ms)
+ApplicationAssignmentsConcept: getNextAssignment - No eligible applications scenario ... ok (814ms)
+ApplicationAssignmentsConcept: getNextAssignment - Prioritization by fewest reads completed ... ok (1s)
+ApplicationAssignmentsConcept: skipAssignment - Handles invalid assignment or user mismatch ... ok (696ms)
+ApplicationAssignmentsConcept: submitAndIncrement - Handles invalid assignment or user mismatch ... ok (831ms)
+ApplicationAssignmentsConcept: submitAndIncrement - Correctly updates AppStatus and removes assignment ... ok (849ms)

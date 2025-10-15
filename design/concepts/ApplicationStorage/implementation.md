@@ -6,7 +6,7 @@
 
 [@ApplicationStorageSpec](ApplicationStorageSpec.md)
 
-# prompt: given the information about the ApplicationStorage concept and instructions on how to implement concepts and how concept specifications work, implement ApplicationStorage. Refer to the previously written version of a similar concept in which AI comments were generated, keeping the same exact prompt for the LLM.
+# prompt: given the information about the ApplicationStorage concept and instructions on how to implement concepts and how concept specifications work, implement ApplicationStorage. Refer to the previously written version of a similar concept in which AI comments were generated, keeping the same exact prompt for the LLM. 
 
 # Previous version of a similar concept:
 ```

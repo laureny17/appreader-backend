@@ -1,16 +1,9 @@
-[@concept-design-overview](../../background/concept-design-overview.md)
+---
+timestamp: 'Wed Oct 15 2025 05:09:19 GMT-0400 (Eastern Daylight Time)'
+parent: '[[../20251015_050919.1c28de21.md]]'
+content_id: 36187035b447eeda7055bbd40e16586cce2ffb6edcf650028a84acebee34244f
+---
 
-[@concept-specifications](../../background/concept-specifications.md)
-
-[@implementing-concepts](../../background/implementing-concepts.md)
-
-[@ApplicationAssignmentsSpec](ApplicationAssignmentsSpec.md)
-
-# prompt: Given the information about the ApplicationAssignments concept and instructions on how to implement concepts and how concept specifications work, implement ApplicationAssignments. I don't think we should defineSubmitAndIncrementResult or GetNextAssignmentResult.
-# implement: ApplicationAssignments
-
-# concept: ApplicationAssignments 
-[@ApplicationAssignmentsSpec](ApplicationAssignmentsSpec.md)
 # response:
 
 ```typescript
