@@ -313,6 +313,69 @@ Deno.test("ApplicationAssignmentsConcept: Principle Fulfillment - Full User Assi
   client.close();
 });
 
+Deno.test("ApplicationAssignmentsConcept: Reassignment After Submission", async () => {
+  const [db, client] = await testDb();
+  const applicationAssignments = new ApplicationAssignmentsConcept(db);
+
+  // Clean slate
+  await db.collection("ApplicationAssignments.currentAssignments").deleteMany(
+    {},
+  );
+  await db.collection("ApplicationAssignments.appStatus").deleteMany({});
+
+  const event = "event:ReassignTest" as ID;
+  const app = "app:Reassignable" as ID;
+  const alice = "user:Alice" as ID;
+  const bob = "user:Bob" as ID;
+
+  // Register one application for the event
+  await applicationAssignments.registerApplicationForAssignment({
+    application: app,
+    event,
+  });
+
+  // Alice gets and submits the app
+  const aliceAssign = await applicationAssignments.getNextAssignment({
+    user: alice,
+    event,
+    startTime: new Date(),
+  });
+  assert(aliceAssign.assignment, "Alice should get the app initially.");
+  await applicationAssignments.submitAndIncrement({
+    user: alice,
+    assignment: aliceAssign.assignment as any,
+    endTime: new Date(),
+  });
+
+  // Verify readsCompleted incremented
+  const appStatusAfterAlice = await db.collection(
+    "ApplicationAssignments.appStatus",
+  ).findOne({ application: app, event });
+  assertEquals(
+    appStatusAfterAlice?.readsCompleted,
+    1,
+    "Reads should be incremented after Alice’s submission.",
+  );
+
+  // Bob requests next assignment for the same event
+  const bobAssign = await applicationAssignments.getNextAssignment({
+    user: bob,
+    event,
+    startTime: new Date(),
+  });
+  assert(
+    bobAssign.assignment,
+    "Bob should get the app after Alice submitted it.",
+  );
+  assertEquals(
+    bobAssign.assignment?.application,
+    app,
+    "The same app can be reassigned to another user after submission.",
+  );
+
+  client.close();
+});
+
 Deno.test("ApplicationAssignmentsConcept: registerApplicationForAssignment - Idempotency", async () => {
   const [db, client] = await testDb();
   const applicationAssignments = new ApplicationAssignmentsConcept(db);
