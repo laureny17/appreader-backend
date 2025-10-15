@@ -1,0 +1,6 @@
+[@implementation](implementation.md)
+[@testing-concepts](../../background/testing-concepts.md)
+[@LikertSurvey-concept-tests](/src/concepts/LikertSurvey/LikertSurveyConcept.test.ts)
+# prompt: Observe how tests were structured for one of our concepts AuthAccounts concept here ([@AuthAccounts-concept-tests](/src/concepts/AuthAccounts/AuthAccountsConcept.test.ts)) and for the sample LikertSurvey concept here ([@testing](../LikertSurvey/testing.md) and [@LikertSurvey-concept-tests](/src/concepts/LikertSurvey/LikertSurveyConcept.test.ts)) and create a test suite that works with the Deno testing framework and covers a full trace that  demonstrates how the principle of the concept is fulfilled by a sequence of actions. Ensure that no tests use or depend on ANY other concepts besides ReviewRecords itself. Do not test any behavior that requires cross-concept interaction. Minimize imports to what is needed. When performing await testDb() (do NOT use getDb()), declare the results as const variables db and client on the first line of the test case, and set const ReviewRecords = new ReviewRecordsConcept(db);
+
+# test: ReviewRecords

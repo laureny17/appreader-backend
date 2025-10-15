@@ -1,6 +1,7 @@
 {
-    "imports": {
-        "@concepts/": "./src/concepts/",
-        "@utils/": "./src/utils/"
-    }
+  "imports": {
+    "@concepts/": "./src/concepts/",
+    "@utils/": "./src/utils/"
+  },
+  "nodeModulesDir": "auto"
 }
