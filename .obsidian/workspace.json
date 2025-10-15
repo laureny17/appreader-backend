@@ -186,6 +186,7 @@
   },
   "active": "184d168008fe6fd1",
   "lastOpenFiles": [
+    "src/concepts/ApplicationStorage/test-execution.md",
     "context/design/concepts/ApplicationStorage/testing.md/20251015_042625.8397532d.md",
     "context/design/concepts/ApplicationStorage/testing.md/steps/response.afc20942.md",
     "design/concepts/ApplicationStorage/implementation.md",
@@ -213,7 +214,6 @@
     "src/utils/gemini-llm.ts",
     "context/design/concepts/ApplicationStorage/implementation.md/20251015_041410.df3d6a6e.md",
     "context/design/concepts/ApplicationStorage/implementation.md/steps/response.14007a95.md",
-    "context/design/concepts/ApplicationStorage/implementation.md/20251015_041318.5bb03ad8.md",
     "src/gemini-llm.ts",
     "context/design/concepts/ApplicationStorage/implementation.md/steps",
     "context/design/concepts/ApplicationStorage",

@@ -36,14 +36,7 @@ AuthAccountsConcept functionality ...
 [AuthAccountsConcept functionality] Closing MongoDB client.
 ----- post-test output end -----
 AuthAccountsConcept functionality ... ok (1s)
-running 1 test from ./src/concepts/EventDirectory/EventDirectoryConcept.test.ts
-EventDirectoryConcept: principle fulfilment and edge cases ... ok (1s)
-running 5 tests from ./src/concepts/LikertSurvey/LikertSurveyConcept.test.ts
-Principle: Author creates survey, respondent answers, author views results ... ok (960ms)
-Action: createSurvey requires scaleMin < scaleMax ... ok (595ms)
-Action: addQuestion requires an existing survey ... ok (502ms)
-Action: submitResponse requirements are enforced ... ok (864ms)
-Action: updateResponse successfully updates a response and enforces requirements ... ok (947ms)
-running 0 tests from ./src/concepts/ReviewRecords/ReviewRecordsConcept.test.ts
+
+[... other tests ...]
 
 ok | 7 passed (5 steps) | 0 failed (7s)
