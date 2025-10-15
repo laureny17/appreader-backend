@@ -21,10 +21,10 @@ state
         a justification String
 
 actions
-    addApplication (adder: String, event: Event, applicantID: String, applicantYear: String, answers: set of String): (application: Application)
+    addApplication (adder: String, event: Event, applicantID: String, applicantYear: String, answers: set of String): (application: Application, event: Event)
         requires: applicantID and applicantYear are non-empty strings, answers is a non-empty set
         effects: create an application for the event for the applicantID, associated with the applicantYear
-            and the set of answers
+            and the set of answers; return the created application and event for which it was submitted
 
     async generateAIComments (application: Application, questions: set of String, rubric: set of String, eligibilityCriteria: set of String)
         requires: application exists

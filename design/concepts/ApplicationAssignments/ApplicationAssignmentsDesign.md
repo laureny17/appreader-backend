@@ -8,4 +8,4 @@
   - Added registerApplicationForAssignment() now that addApplication is separate for the ApplicationStorage concept
 - Edited required/effects
   - getNextAssignment() now only requires “user not currently assigned for this event” (no checking for if event is an active event; enforced via syncs and UI)
-  - skipAssignment/incrementOnSubmit only checks only assignment ownership; again, these also don’t check for anything cross-concept
+  - skipAssignment/submitAndIncrement only checks only assignment ownership; again, these also don’t check for anything cross-concept

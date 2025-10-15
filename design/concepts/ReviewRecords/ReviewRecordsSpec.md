@@ -32,9 +32,10 @@ actions
         requires: author must not have already submitted a review for the application
         effects: create a Review with the provided details
 
-    setScore (author: User, review: Review, criterion: String, value: Number)
+    setScore (author: User, review: Review, criterion: String, value: Number): (application: Application)
         requires: author is the author of the review
-        effects: update the score for the review for the specified criterion to be the specified value
+        effects: update the score for the review for the specified criterion to be the specified value,
+            and return the application that the review is for
 
     editReview (editor: User, review: Review)
         requires: editor is the author of the review
@@ -58,5 +59,5 @@ actions
 
     deleteComment(author: User, comment: Comment)
         requires: author is the author of the comment
-        effects: update the comment’s text to the provided values
+        effects: delete the comment
 ```

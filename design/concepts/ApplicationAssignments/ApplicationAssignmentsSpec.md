@@ -22,7 +22,7 @@ state
         a readers set of Users
 
 actions
-    registerApplicationForAssignment (event: Event, application: Application)
+    registerApplicationForAssignment (application: Application, event: Event)
         requires: none
         effects: create AppStatus for the specified application for the specified event with readsCompleted = 0
             and an empty readers set initialized
@@ -37,7 +37,8 @@ actions
         effects: add user to the application's readers set for that assignment; remove the CurrentAssignment
             so the application can be reassigned to other users but not to this user
 
-    incrementOnSubmit (user: User, assignment: CurrentAssignments, endTime: DateTime)
+    submitAndIncrement (user: User, assignment: CurrentAssignments, endTime: DateTime) : (application: Application)
         requires: user is currently assigned the provided assignment
-        effects: increment readsCompleted for the application, add user to the readers set, and remove the CurrentAssignment
+        effects: increment the number of completed reads for the application, record that the user read the application,
+        un-assign the application from the reader, and return the application associated with the assignment
 ```
