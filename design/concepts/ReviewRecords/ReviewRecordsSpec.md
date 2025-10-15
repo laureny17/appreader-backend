@@ -1,0 +1,62 @@
+# ReviewRecords Spec
+
+```
+concept ReviewRecords [Application, User]
+purpose Store reviews of applications, with editing, flagging, and comments.
+principle A user can submit a review for an application, and overwrite their past reviews with edits. They can also
+    add a flag to a review, and write comments for other users to see.
+
+state
+    a set of Reviews with
+        an Application
+        an author User
+        a submittedAt DateTime
+
+    a set of Scores with
+        a review Review
+        a criterion String
+        a value Number
+
+    a set of RedFlags with
+        a review Review
+        an author User
+
+    a set of Comments with
+        a review Review
+        an author User
+        a text String
+        a quotedSnippet String
+
+actions
+    submitReview (author: User, application: Application, currentTime: DateTime): (review: Review)
+        requires: author must not have already submitted a review for the application
+        effects: create a Review with the provided details
+
+    setScore (author: User, review: Review, criterion: String, value: Number)
+        requires: author is the author of the review
+        effects: update the score for the review for the specified criterion to be the specified value
+
+    editReview (editor: User, review: Review)
+        requires: editor is the author of the review
+        effects: does not change submittedAt; acts as an edit operation after which scores are updated via setScore
+
+    addRedFlag (author: User, review: Review): (flag: RedFlag)
+        requires: author is the author of the review and has not already added a red flag to this review
+        effects: add a RedFlag for this review associated with the author
+
+    removeRedFlag (author: User, review: Review)
+        requires: author is the author of the review and has previously added a red flag to this review
+        effects: remove the author’s RedFlag for this review
+
+    addComment (author: User, review: Review, text: String, quotedSnippet: String): (comment: Comment)
+        requires: text is not an empty string and quotedSnippet is not an empty string
+        effects: add comment with provided details to the set of comments, associated with this review
+
+    editComment (author: User, comment: Comment, newText: String)
+        requires: author is the author of the comment
+        effects: update the comment’s text to the provided values
+
+    deleteComment(author: User, comment: Comment)
+        requires: author is the author of the comment
+        effects: update the comment’s text to the provided values
+```
