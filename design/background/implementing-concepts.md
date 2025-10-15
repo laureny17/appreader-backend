@@ -4,6 +4,7 @@ Concepts can be implemented as a single TypeScript class, and must obey the foll
 1. No import statements can reference another concept in any way, including type declarations.
 2. All methods are either actions or queries from the spec: query methods are named beginning with a `_` character.
 3. Every action must take a single argument, and output a single argument: both of these are a dictionary/JSON object with primitive values (no custom objects).
+4. Types and interfaces must be defined outside of the class to prevent TypeScript errors.
 
 For our specific implementation, we will use MongoDB as the database. Each piece of the concept spec is mapped onto the implementation as follows:
 

@@ -13,15 +13,44 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "design/learning/exercise-0.md",
+                "file": "design/concepts/EventDirectory/implementation.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "exercise-0"
+              "title": "implementation"
+            }
+          },
+          {
+            "id": "184d168008fe6fd1",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "design/concepts/EventDirectory/testing.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "testing"
+            }
+          },
+          {
+            "id": "47742e812e665df6",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "design/concepts/LikertSurvey/testing.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "testing"
             }
           }
-        ]
+        ],
+        "currentTab": 1
       }
     ],
     "direction": "vertical"
@@ -78,7 +107,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300
+    "width": 324.5
   },
   "right": {
     "id": "ffc60e9763cc384c",
@@ -169,34 +198,43 @@
       "bases:Create new base": false
     }
   },
-  "active": "60ccb8b74e272dda",
+  "active": "184d168008fe6fd1",
   "lastOpenFiles": [
-    "context/design/learning/exercise-0.md/20251015_002619.f072571c.md",
-    "context/design/learning/exercise-0.md/steps/_.78590f80.md",
-    "context/design/learning/exercise-0.md/steps/response.4563598e.md",
-    "context/design/learning/exercise-0.md/steps/prompt.9fa40959.md",
-    "context/design/learning/exercise-0.md/steps/prompt.0ecacf5b.md",
-    "context/design/learning/exercise-0.md/steps/_.e57d04eb.md",
-    "context/design/learning/exercise-0.md/steps",
-    "context/design/learning/exercise-0.md/20251015_002520.976e7875.md",
-    "context/design/learning/exercise-0.md",
-    "design/brainstorming/questioning.md",
-    "design/learning/exercise-0.md",
-    "context/design/brainstorming/questioning.md/20251015_002119.6493dda9.md",
-    "design/learning/understanding-concepts.md",
-    "context/design/brainstorming/questioning.md/20251015_001500.e2599f7d.md",
-    "context/design/brainstorming/questioning.md/steps/prompt.9fa40959.md",
-    "context/design/brainstorming/questioning.md/20251015_001449.0ecacf5b.md",
-    "context/design/brainstorming/questioning.md/20251007_210354.dbfa3313.md",
-    "context/design/brainstorming/questioning.md/20251007_210412.34d993fb.md",
-    "context/design/learning/understanding-concepts.md/20251015_001743.4b245705.md",
-    "context/design/learning/understanding-concepts.md/steps/response.6e77a6aa.md",
-    "context/design/learning/understanding-concepts.md/20251015_001725.38550fa5.md",
-    "context/design/learning/understanding-concepts.md/steps/question.3a67a92b.md",
-    "context/design/concepts/LikertSurvey/LikertSurvey.md/20251007_211929.a7c3ee81.md",
-    "context/design/brainstorming/questioning.md/steps/response.09c0f311.md",
-    "context/design/brainstorming/questioning.md/steps/prompt.0ecacf5b.md",
-    "context/design/concepts/LikertSurvey/testing.md/steps/_.3eb68380.md",
-    "context/design/concepts/LikertSurvey/testing.md/20251007_211454.a9413577.md"
+    "context/design/concepts/EventDirectory/testing.md/20251015_030854.5ace62be.md",
+    "context/design/concepts/EventDirectory/testing.md/steps/response.b869b4e9.md",
+    "context/design/concepts/EventDirectory/testing.md/20251015_030732.d99e40ff.md",
+    "context/design/concepts/EventDirectory/testing.md/steps/prompt.9e9ab745.md",
+    "context/design/concepts/EventDirectory/testing.md/steps/response.7c7140f1.md",
+    "context/design/concepts/EventDirectory/testing.md/steps/_.d2180929.md",
+    "design/concepts/LikertSurvey/testing.md",
+    "design/concepts/EventDirectory/testing.md",
+    "design/brainstorming/EventDirectoryTestBrainstorming.md",
+    "design/concepts/EventDirectory/implementation.md",
+    "context/design/concepts/EventDirectory/implementation.md/20251015_030311.968c52f6.md",
+    "context/design/concepts/EventDirectory/implementation.md/steps/response.7c7140f1.md",
+    "context/design/concepts/EventDirectory/implementation.md/20251015_030240.f47dd875.md",
+    "context/design/concepts/EventDirectory/implementation.md/steps/_.d2180929.md",
+    "context/design/concepts/EventDirectory/debugging.md/20251015_023423.c9b66f85.md",
+    "context/design/concepts/EventDirectory/debugging.md/steps/_.04e090af.md",
+    "design/concepts/EventDirectory/debugging.md",
+    "context/design/concepts/EventDirectory/debugging.md/20251015_025223.aa7e93f2.md",
+    "context/design/concepts/EventDirectory/debugging.md/steps/file.1be5e205.md",
+    "context/design/concepts/EventDirectory/debugging.md/steps/response.4eb83b4e.md",
+    "context/design/concepts/EventDirectory/debugging.md/20251015_025145.257e09fe.md",
+    "context/design/concepts/EventDirectory/debugging.md/steps/prompt.f4356f8e.md",
+    "context/design/concepts/EventDirectory/debugging.md/20251015_024817.46512adf.md",
+    "context/design/concepts/EventDirectory/debugging.md/steps/response.47671ff5.md",
+    "context/design/concepts/EventDirectory/debugging.md/20251015_024755.46dee40d.md",
+    "context/design/concepts/EventDirectory/debugging.md/steps/file.702b3587.md",
+    "context/design/concepts/EventDirectory/debugging.md/steps",
+    "context/design/concepts/EventDirectory/testing.md/steps",
+    "context/design/brainstorming/EventDirectoryTestBrainstorming.md/steps",
+    "context/design/concepts/EventDirectory/implementation.md/steps",
+    "context/design/concepts/EventDirectory",
+    "src/concepts/ReviewRecords/ReviewRecordsConcept.test.ts",
+    "src/concepts/ReviewRecords/ReviewRecordsConcept.ts",
+    "src/concepts/EventDirectory/EventDirectoryConcept.test.ts",
+    "src/concepts/EventDirectory/EventDirectoryConcept.ts",
+    "src/concepts/AuthAccounts/AuthAccountsConcept.test.ts"
   ]
 }
