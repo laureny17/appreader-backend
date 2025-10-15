@@ -1,3 +1,11 @@
+// This test suite demonstrates that:
+//    An admin can create a new event with an initial rubric and configuration
+//    A user appears as an unverified member until an admin approves them
+//    Admins can toggle an event’s active status
+//    Admins can update the rubric, eligibility, and required reads
+//    Reader verification status can be toggled
+//    Admin roles can be toggled by admins
+
 import { assert, assertEquals } from "jsr:@std/assert";
 import { freshID, testDb } from "@utils/database.ts";
 import { ID } from "@utils/types.ts";
