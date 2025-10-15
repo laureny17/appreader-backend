@@ -1,4 +1,20 @@
-import { assertEquals, assertExists } from "jsr:@std/assert";
+---
+timestamp: 'Wed Oct 15 2025 06:38:28 GMT-0400 (Eastern Daylight Time)'
+parent: '[[../20251015_063828.c63913fc.md]]'
+content_id: b6d828a6b309e60218cb04e901b33aa3704d98698be266c973ec8e67d51ddcc3
+---
+
+# response:
+
+```typescript
+// file: src/ReviewRecords/ReviewRecordsConcept.test.ts
+import {
+  assertEquals,
+  assertExists,
+  assertNotEquals,
+  assertStrictEquals,
+} from "https://deno.land/std@0.210.0/assert/mod.ts";
+import { Collection } from "npm:mongodb";
 import { ID } from "@utils/types.ts";
 import { freshID, testDb } from "@utils/database.ts";
 import ReviewRecordsConcept from "./ReviewRecordsConcept.ts";
@@ -34,7 +50,7 @@ interface CommentDoc {
 
 Deno.test("ReviewRecords Concept", async (t) => {
   // Test Case: Fulfills principle: user can submit, edit, flag, and comment on reviews
-  await t.step(
+  await t.test(
     "fulfills principle: user can submit, edit, flag, and comment on reviews",
     async () => {
       const [db, client] = await testDb();
@@ -68,10 +84,7 @@ Deno.test("ReviewRecords Concept", async (t) => {
       assertExists(storedReview);
       assertEquals(storedReview.author, userId);
       assertEquals(storedReview.application, appId);
-      assertEquals(
-        storedReview.submittedAt.toISOString(),
-        initialDate.toISOString(),
-      );
+      assertEquals(storedReview.submittedAt.toISOString(), initialDate.toISOString());
       console.log("Submit Review: OK");
 
       // --- Action 2: Set an initial score for the review ---
@@ -112,10 +125,7 @@ Deno.test("ReviewRecords Concept", async (t) => {
         "ReviewRecords.reviews",
       ).findOne({ _id: reviewId });
       assertExists(reviewAfterEdit);
-      assertEquals(
-        reviewAfterEdit.submittedAt.toISOString(),
-        initialDate.toISOString(),
-      );
+      assertEquals(reviewAfterEdit.submittedAt.toISOString(), initialDate.toISOString());
       console.log("Edit Review (permission): OK");
 
       // --- Action 4: Update the existing score after an "edit" ---
@@ -146,9 +156,7 @@ Deno.test("ReviewRecords Concept", async (t) => {
         value: 3,
       });
       if ("error" in setScoreResult3) {
-        throw new Error(
-          `setScore (new criterion) failed: ${setScoreResult3.error}`,
-        );
+        throw new Error(`setScore (new criterion) failed: ${setScoreResult3.error}`);
       }
       assertEquals(setScoreResult3.application, appId);
 
@@ -276,7 +284,7 @@ Deno.test("ReviewRecords Concept", async (t) => {
 
   // --- Additional Error/Requirement-focused Tests ---
 
-  await t.step(
+  await t.test(
     "submitReview prevents duplicate reviews by same author for same application",
     async () => {
       const [db, client] = await testDb();
@@ -286,11 +294,7 @@ Deno.test("ReviewRecords Concept", async (t) => {
       const app = freshID() as ID;
       const date = new Date();
 
-      await reviewRecords.submitReview({
-        author,
-        application: app,
-        currentTime: date,
-      });
+      await reviewRecords.submitReview({ author, application: app, currentTime: date });
       const duplicateResult = await reviewRecords.submitReview({
         author,
         application: app,
@@ -310,42 +314,39 @@ Deno.test("ReviewRecords Concept", async (t) => {
     },
   );
 
-  await t.step(
-    "setScore requires author to be the review's author",
-    async () => {
-      const [db, client] = await testDb();
-      const reviewRecords = new ReviewRecordsConcept(db);
+  await t.test("setScore requires author to be the review's author", async () => {
+    const [db, client] = await testDb();
+    const reviewRecords = new ReviewRecordsConcept(db);
 
-      const author = freshID() as ID;
-      const otherUser = freshID() as ID;
-      const app = freshID() as ID;
-      const review = (await reviewRecords.submitReview({
-        author,
-        application: app,
-        currentTime: new Date(),
-      })) as { review: ID };
+    const author = freshID() as ID;
+    const otherUser = freshID() as ID;
+    const app = freshID() as ID;
+    const review = (await reviewRecords.submitReview({
+      author,
+      application: app,
+      currentTime: new Date(),
+    })) as { review: ID };
 
-      const setScoreResult = await reviewRecords.setScore({
-        author: otherUser,
-        review: review.review,
-        criterion: "criterion1",
-        value: 3,
-      });
+    const setScoreResult = await reviewRecords.setScore({
+      author: otherUser,
+      review: review.review,
+      criterion: "criterion1",
+      value: 3,
+    });
 
-      if (!("error" in setScoreResult)) {
-        throw new Error("setScore by non-author should have failed");
-      }
-      assertExists(setScoreResult.error);
-      assertEquals(
-        setScoreResult.error,
-        "Only the author of the review can set its scores",
-      );
+    if (!("error" in setScoreResult)) {
+      throw new Error("setScore by non-author should have failed");
+    }
+    assertExists(setScoreResult.error);
+    assertEquals(
+      setScoreResult.error,
+      "Only the author of the review can set its scores",
+    );
 
-      await client.close();
-    },
-  );
+    await client.close();
+  });
 
-  await t.step(
+  await t.test(
     "addRedFlag prevents duplicate flags by same author for same review",
     async () => {
       const [db, client] = await testDb();
@@ -378,7 +379,7 @@ Deno.test("ReviewRecords Concept", async (t) => {
     },
   );
 
-  await t.step(
+  await t.test(
     "addRedFlag only allows review author to flag their own review (as per spec interpretation)",
     async () => {
       const [db, client] = await testDb();
@@ -411,7 +412,7 @@ Deno.test("ReviewRecords Concept", async (t) => {
     },
   );
 
-  await t.step(
+  await t.test(
     "addComment requires non-empty text and quotedSnippet",
     async () => {
       const [db, client] = await testDb();
@@ -451,84 +452,73 @@ Deno.test("ReviewRecords Concept", async (t) => {
     },
   );
 
-  await t.step(
-    "editComment requires author to be the comment's author",
-    async () => {
-      const [db, client] = await testDb();
-      const reviewRecords = new ReviewRecordsConcept(db);
+  await t.test("editComment requires author to be the comment's author", async () => {
+    const [db, client] = await testDb();
+    const reviewRecords = new ReviewRecordsConcept(db);
 
-      const reviewAuthor = freshID() as ID;
-      const commentAuthor = freshID() as ID;
-      const otherUser = freshID() as ID;
-      const app = freshID() as ID;
-      const review = (await reviewRecords.submitReview({
-        author: reviewAuthor,
-        application: app,
-        currentTime: new Date(),
-      })) as { review: ID };
-      const comment = (await reviewRecords.addComment({
-        author: commentAuthor,
-        review: review.review,
-        text: "initial",
-        quotedSnippet: "q",
-      })) as { comment: ID };
+    const reviewAuthor = freshID() as ID;
+    const commentAuthor = freshID() as ID;
+    const otherUser = freshID() as ID;
+    const app = freshID() as ID;
+    const review = (await reviewRecords.submitReview({
+      author: reviewAuthor,
+      application: app,
+      currentTime: new Date(),
+    })) as { review: ID };
+    const comment = (await reviewRecords.addComment({
+      author: commentAuthor,
+      review: review.review,
+      text: "initial",
+      quotedSnippet: "q",
+    })) as { comment: ID };
 
-      const editResult = await reviewRecords.editComment({
-        author: otherUser,
-        comment: comment.comment,
-        newText: "new text",
-      });
+    const editResult = await reviewRecords.editComment({
+      author: otherUser,
+      comment: comment.comment,
+      newText: "new text",
+    });
 
-      if (!("error" in editResult)) {
-        throw new Error("editComment by non-author should have failed");
-      }
-      assertExists(editResult.error);
-      assertEquals(
-        editResult.error,
-        "Only the author of the comment can edit it",
-      );
+    if (!("error" in editResult)) {
+      throw new Error("editComment by non-author should have failed");
+    }
+    assertExists(editResult.error);
+    assertEquals(editResult.error, "Only the author of the comment can edit it");
 
-      await client.close();
-    },
-  );
+    await client.close();
+  });
 
-  await t.step(
-    "deleteComment requires author to be the comment's author",
-    async () => {
-      const [db, client] = await testDb();
-      const reviewRecords = new ReviewRecordsConcept(db);
+  await t.test("deleteComment requires author to be the comment's author", async () => {
+    const [db, client] = await testDb();
+    const reviewRecords = new ReviewRecordsConcept(db);
 
-      const reviewAuthor = freshID() as ID;
-      const commentAuthor = freshID() as ID;
-      const otherUser = freshID() as ID;
-      const app = freshID() as ID;
-      const review = (await reviewRecords.submitReview({
-        author: reviewAuthor,
-        application: app,
-        currentTime: new Date(),
-      })) as { review: ID };
-      const comment = (await reviewRecords.addComment({
-        author: commentAuthor,
-        review: review.review,
-        text: "initial",
-        quotedSnippet: "q",
-      })) as { comment: ID };
+    const reviewAuthor = freshID() as ID;
+    const commentAuthor = freshID() as ID;
+    const otherUser = freshID() as ID;
+    const app = freshID() as ID;
+    const review = (await reviewRecords.submitReview({
+      author: reviewAuthor,
+      application: app,
+      currentTime: new Date(),
+    })) as { review: ID };
+    const comment = (await reviewRecords.addComment({
+      author: commentAuthor,
+      review: review.review,
+      text: "initial",
+      quotedSnippet: "q",
+    })) as { comment: ID };
 
-      const deleteResult = await reviewRecords.deleteComment({
-        author: otherUser,
-        comment: comment.comment,
-      });
+    const deleteResult = await reviewRecords.deleteComment({
+      author: otherUser,
+      comment: comment.comment,
+    });
 
-      if (!("error" in deleteResult)) {
-        throw new Error("deleteComment by non-author should have failed");
-      }
-      assertExists(deleteResult.error);
-      assertEquals(
-        deleteResult.error,
-        "Only the author of the comment can delete it",
-      );
+    if (!("error" in deleteResult)) {
+      throw new Error("deleteComment by non-author should have failed");
+    }
+    assertExists(deleteResult.error);
+    assertEquals(deleteResult.error, "Only the author of the comment can delete it");
 
-      await client.close();
-    },
-  );
+    await client.close();
+  });
 });
+```

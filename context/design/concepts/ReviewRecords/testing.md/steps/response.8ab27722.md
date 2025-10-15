@@ -1,5 +1,15 @@
-import { Collection, Db } from "npm:mongodb";
-import { ID } from "@utils/types.ts";
+---
+timestamp: 'Wed Oct 15 2025 06:37:51 GMT-0400 (Eastern Daylight Time)'
+parent: '[[../20251015_063751.63efe48d.md]]'
+content_id: 8ab277229307df5a46a7297a56c83ec653d4e3134f7ec5e7617ee74127e31206
+---
+
+# response:
+
+```typescript
+// file: src/ReviewRecords/ReviewRecordsConcept.ts
+import { Collection, Db, ObjectId } from "npm:mongodb";
+import { ID, Empty, Success } from "@utils/types.ts";
 import { freshID } from "@utils/database.ts";
 
 /**
@@ -13,9 +23,9 @@ const PREFIX = "ReviewRecords" + ".";
 type Application = ID;
 type User = ID;
 type Review = ID;
-type Score = ID; // Each Score document will have its own ID
-type RedFlag = ID; // Each RedFlag document will have its own ID
-type Comment = ID; // Each Comment document will have its own ID
+type Score = ID;
+type RedFlag = ID;
+type Comment = ID;
 
 /**
  * a set of Reviews with
@@ -144,15 +154,18 @@ export default class ReviewRecordsConcept {
 
     // effects: update the score for the review for the specified criterion to be the specified value,
     //   and return the application that the review is for
+    const scoreId = freshID() as Score; // Generate new ID if inserting, otherwise it will be ignored by updateOne with upsert
     const updateResult = await this.scores.updateOne(
       { review, criterion }, // Filter by review and criterion to find existing score
       {
         $set: { value },
-        $setOnInsert: { _id: freshID() as Score, review, criterion }, // Set _id and other immutable fields only on insert
+        $setOnInsert: { _id: scoreId, review, criterion }, // Set _id and other immutable fields only on insert
       },
       { upsert: true }, // Create if not exists
     );
 
+    // If a new document was inserted, `updateResult.upsertedId` will be present.
+    // If an existing document was updated, `updateResult.modifiedCount` will be 1.
     if (!updateResult.acknowledged) {
       return { error: "Failed to set score" };
     }
@@ -161,13 +174,13 @@ export default class ReviewRecordsConcept {
   }
 
   /**
-   * editReview (editor: User, review: Review)
+   * editReview (editor: User, review: Review): Success
    * requires: editor is the author of the review
    * effects: does not change submittedAt; acts as an edit operation after which scores are updated via setScore
    */
   async editReview(
     { editor, review }: { editor: User; review: Review },
-  ): Promise<{ success: true } | { error: string }> {
+  ): Promise<Success | { error: string }> {
     // requires: editor is the author of the review
     const targetReview = await this.reviews.findOne({ _id: review });
     if (!targetReview) {
@@ -178,9 +191,8 @@ export default class ReviewRecordsConcept {
     }
 
     // effects: does not change submittedAt; acts as an edit operation after which scores are updated via setScore
-    // This action itself has no direct state effects on the ReviewDoc other than validating access.
-    // The "effect" here is conceptual: it represents the *permission* to edit,
-    // after which concrete changes (like scores) are applied by other actions (e.g., setScore).
+    // This action itself has no direct state effects beyond validating access.
+    // The "effect" here is conceptual: enabling subsequent setScore calls.
     return { success: true };
   }
 
@@ -197,7 +209,7 @@ export default class ReviewRecordsConcept {
     if (!targetReview) {
       return { error: "Review not found" };
     }
-    // As per the specification, this implies the *reviewer* is flagging their *own* review.
+    // As per the specification, this means the *reviewer* is flagging their *own* review.
     if (targetReview.author !== author) {
       return {
         error:
@@ -225,19 +237,19 @@ export default class ReviewRecordsConcept {
   }
 
   /**
-   * removeRedFlag (author: User, review: Review)
+   * removeRedFlag (author: User, review: Review): Success
    * requires: author is the author of the review and has previously added a red flag to this review
    * effects: remove the author’s RedFlag for this review
    */
   async removeRedFlag(
     { author, review }: { author: User; review: Review },
-  ): Promise<{ success: true } | { error: string }> {
+  ): Promise<Success | { error: string }> {
     // requires: author is the author of the review
     const targetReview = await this.reviews.findOne({ _id: review });
     if (!targetReview) {
       return { error: "Review not found" };
     }
-    // As per the specification, this implies the *reviewer* is removing a red flag from their *own* review.
+    // As per the specification, this means the *reviewer* is removing a red flag from their *own* review.
     if (targetReview.author !== author) {
       return {
         error:
@@ -254,11 +266,8 @@ export default class ReviewRecordsConcept {
     }
 
     // effects: remove the author’s RedFlag for this review
-    const deleteResult = await this.redFlags.deleteOne({
-      _id: existingFlag._id,
-    });
+    const deleteResult = await this.redFlags.deleteOne({ _id: existingFlag._id });
     if (deleteResult.deletedCount === 0) {
-      // This case should ideally not happen if `existingFlag` was found, but good for robustness.
       return { error: "Failed to remove red flag" };
     }
 
@@ -286,7 +295,7 @@ export default class ReviewRecordsConcept {
       return { error: "Quoted snippet cannot be empty" };
     }
 
-    // Ensure the review exists before adding a comment to it (implicit requirement for data integrity)
+    // Ensure the review exists before adding a comment to it
     const targetReview = await this.reviews.findOne({ _id: review });
     if (!targetReview) {
       return { error: "Review not found, cannot add comment" };
@@ -306,7 +315,7 @@ export default class ReviewRecordsConcept {
   }
 
   /**
-   * editComment (author: User, comment: Comment, newText: String)
+   * editComment (author: User, comment: Comment, newText: String): Success
    * requires: author is the author of the comment
    * effects: update the comment’s text to the provided values
    */
@@ -316,7 +325,7 @@ export default class ReviewRecordsConcept {
       comment: Comment;
       newText: string;
     },
-  ): Promise<{ success: true } | { error: string }> {
+  ): Promise<Success | { error: string }> {
     // requires: author is the author of the comment
     const targetComment = await this.comments.findOne({ _id: comment });
     if (!targetComment) {
@@ -325,7 +334,6 @@ export default class ReviewRecordsConcept {
     if (targetComment.author !== author) {
       return { error: "Only the author of the comment can edit it" };
     }
-    // Also add a check for newText not being empty, similar to addComment
     if (!newText.trim()) {
       return { error: "New comment text cannot be empty" };
     }
@@ -337,22 +345,20 @@ export default class ReviewRecordsConcept {
     );
 
     if (updateResult.modifiedCount === 0) {
-      // This could mean the comment was found but the text was the same, or the update failed.
-      // For simplicity, we'll return an error here, but a more nuanced design might differentiate.
-      return { error: "Failed to update comment text or no change detected" };
+      return { error: "Failed to update comment text" };
     }
 
     return { success: true };
   }
 
   /**
-   * deleteComment(author: User, comment: Comment)
+   * deleteComment(author: User, comment: Comment): Success
    * requires: author is the author of the comment
    * effects: delete the comment
    */
   async deleteComment(
     { author, comment }: { author: User; comment: Comment },
-  ): Promise<{ success: true } | { error: string }> {
+  ): Promise<Success | { error: string }> {
     // requires: author is the author of the comment
     const targetComment = await this.comments.findOne({ _id: comment });
     if (!targetComment) {
@@ -365,10 +371,10 @@ export default class ReviewRecordsConcept {
     // effects: delete the comment
     const deleteResult = await this.comments.deleteOne({ _id: comment });
     if (deleteResult.deletedCount === 0) {
-      // Should not happen if `targetComment` was found and then deleted, but good for safety.
       return { error: "Failed to delete comment" };
     }
 
     return { success: true };
   }
 }
+```
