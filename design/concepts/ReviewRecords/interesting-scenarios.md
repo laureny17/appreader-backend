@@ -1,0 +1,3 @@
+[@20251015_063616.acefa3f0](../../../context/design/concepts/ReviewRecords/implementation.md/20251015_063616.acefa3f0.md) When context produced undesirable dditions, it helped to specifically prompt to implement without the said addition
+
+[@20251015_063828.c63913fc](../../../context/design/concepts/ReviewRecords/testing.md/20251015_063828.c63913fc.md) This was the last concept I worked on. Detailed prompting built up through my experiences with using context to build implementations and test cases helped a lot in reducing the amount of times I had to prompt context. Also, I realized I worked a lot faster when I didn't use context to debug and looked through everything myself to find the bug.

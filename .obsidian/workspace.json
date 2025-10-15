@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "design/concepts/LikertSurvey/implementation.md",
+                "file": "context/design/concepts/ReviewRecords/testing.md/20251015_063828.c63913fc.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "implementation"
+              "title": "20251015_063828.c63913fc"
             }
           },
           {
@@ -27,16 +27,30 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "design/concepts/ReviewRecords/testing.md",
+                "file": "design/concepts/ReviewRecords/interesting-scenarios.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "testing"
+              "title": "interesting-scenarios"
+            }
+          },
+          {
+            "id": "2e38d41cb4a53523",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "Untitled.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Untitled"
             }
           }
         ],
-        "currentTab": 1
+        "currentTab": 2
       }
     ],
     "direction": "vertical"
@@ -184,34 +198,34 @@
       "bases:Create new base": false
     }
   },
-  "active": "184d168008fe6fd1",
+  "active": "2e38d41cb4a53523",
   "lastOpenFiles": [
     "design/concepts/ReviewRecords/interesting-scenarios.md",
-    "design/concepts/EventDirectory/interesting-scenarios.md",
-    "design/concepts/AuthAccounts/interesting-scenarios.md",
-    "design/concepts/ApplicationStorage/interesting-scenarios.md",
-    "design/concepts/ApplicationAssignments/interesting-scenarios.md",
-    "src/concepts/ReviewRecords/test-execution.md",
-    "design/concepts/ReviewRecords/implementation.md",
+    "Untitled.md",
     "context/design/concepts/ReviewRecords/testing.md/20251015_063828.c63913fc.md",
-    "context/design/concepts/ReviewRecords/testing.md/steps/response.b6d828a6.md",
-    "context/design/concepts/ReviewRecords/testing.md/20251015_063751.63efe48d.md",
-    "context/design/concepts/ReviewRecords/testing.md/steps/test.676db1cb.md",
-    "context/design/concepts/ReviewRecords/testing.md/steps/prompt.b8ffd19c.md",
-    "context/design/concepts/ReviewRecords/testing.md/steps/response.e4a76afb.md",
-    "context/design/concepts/ReviewRecords/testing.md/steps/response.8ab27722.md",
-    "context/design/concepts/ReviewRecords/testing.md/steps/concept.57658114.md",
-    "context/design/concepts/ReviewRecords/testing.md/steps/prompt.2ffc86f4.md",
-    "context/design/concepts/ReviewRecords/testing.md/steps/implement.1b508ea5.md",
-    "context/design/concepts/ReviewRecords/testing.md/steps/approach.5df2171f.md",
-    "context/design/concepts/ReviewRecords/testing.md/steps/_.db39d951.md",
-    "context/design/concepts/ReviewRecords/testing.md/steps/_.54f55c2b.md",
-    "context/design/concepts/ReviewRecords/testing.md/steps/_.3eb68380.md",
-    "context/design/concepts/ReviewRecords/testing.md/steps/_.3731a859.md",
-    "context/design/concepts/ReviewRecords/testing.md/steps/_.331f5a1f.md",
-    "context/design/concepts/ReviewRecords/testing.md/steps/_.2086d81d.md",
-    "context/design/concepts/ReviewRecords/testing.md/steps/_.159748ed.md",
-    "context/design/concepts/ReviewRecords/testing.md/steps/_.04e090af.md",
+    "context/design/concepts/ReviewRecords/implementation.md/20251015_063616.acefa3f0.md",
+    "context/design/concepts/ReviewRecords/implementation.md/20251015_053902.f014cde2.md",
+    "context/design/concepts/ReviewRecords/implementation.md/20251015_053115.0a310575.md",
+    "context/design/concepts/ReviewRecords/implementation.md/20251015_053032.13dfe56f.md",
+    "context/design/concepts/EventDirectory/debugging.md/20251015_025223.aa7e93f2.md",
+    "design/concepts/EventDirectory/interesting-scenarios.md",
+    "context/design/concepts/EventDirectory/debugging.md/20251015_023608.43b10183.md",
+    "context/design/concepts/EventDirectory/testing.md/20251015_022053.4a28e8f9.md",
+    "context/design/concepts/EventDirectory/testing.md/20251015_022012.1ac62acb.md",
+    "context/design/concepts/EventDirectory/testing.md/20251015_010643.0bc765fd.md",
+    "context/design/concepts/EventDirectory/testing.md/20251015_010457.e960b2a3.md",
+    "context/design/concepts/EventDirectory/implementation.md/20251015_030311.968c52f6.md",
+    "context/design/concepts/EventDirectory/implementation.md/20251015_030240.f47dd875.md",
+    "context/design/concepts/EventDirectory/implementation.md/20251015_004924.d9af7b12.md",
+    "context/design/concepts/EventDirectory/implementation.md/20251015_004857.ecfe9acd.md",
+    "context/design/concepts/EventDirectory/implementation.md/20251015_004308.7f181eec.md",
+    "context/design/concepts/EventDirectory/implementation.md/20251015_004210.79dfdc47.md",
+    "design/concepts/EventDirectory/implementation.md",
+    "context/design/concepts/ApplicationStorage/testing.md/20251015_042625.8397532d.md",
+    "design/concepts/ApplicationStorage/interesting-scenarios.md",
+    "context/design/concepts/ApplicationStorage/implementation.md/20251015_041410.df3d6a6e.md",
+    "context/design/concepts/ApplicationStorage/implementation.md/20251015_041318.5bb03ad8.md",
+    "context/design/concepts/ApplicationStorage/implementation.md/20251015_040554.a9f3dd75.md",
     "context/design/concepts/ReviewRecords/testing.md/steps",
     "context/design/concepts/ReviewRecords/implementation.md/steps",
     "context/design/concepts/ReviewRecords",

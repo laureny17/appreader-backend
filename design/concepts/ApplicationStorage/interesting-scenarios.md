@@ -1,0 +1,5 @@
+[@20251015_040458.c93ef238](../../../context/design/concepts/ApplicationStorage/implementation.md/20251015_040458.c93ef238.md) Context did not really understand how I wanted to prompt Gemini
+
+[@20251015_041410.df3d6a6e](../../../context/design/concepts/ApplicationStorage/implementation.md/20251015_041410.df3d6a6e.md) Providing previous version of implementation of generating AI comments from previous assignment helped a lot, but it did not know about the input to the llm function—this was easier for me to debug by hand instead of using context
+
+[@20251015_042625.8397532d](../../../context/design/concepts/ApplicationStorage/testing.md/20251015_042625.8397532d.md) Upon readkng them through, I discovered that some of these context-generated test cases were simply incorrect. I went in myself and edited them.
