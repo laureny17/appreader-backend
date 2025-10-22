@@ -27,12 +27,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "design/concepts/ReviewRecords/interesting-scenarios.md",
+                "file": "design/tools/api-extraction-from-code.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "interesting-scenarios"
+              "title": "api-extraction-from-code"
             }
           },
           {
@@ -41,16 +41,16 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Untitled.md",
+                "file": "design/tools/api-extraction-from-spec.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Untitled"
+              "title": "api-extraction-from-spec"
             }
           }
         ],
-        "currentTab": 2
+        "currentTab": 1
       }
     ],
     "direction": "vertical"
@@ -198,43 +198,43 @@
       "bases:Create new base": false
     }
   },
-  "active": "2e38d41cb4a53523",
+  "active": "184d168008fe6fd1",
   "lastOpenFiles": [
+    "context/design/tools/api-extraction-from-code.md/20251022_123727.d77e92a8.md",
+    "context/design/tools/api-extraction-from-code.md/steps/API Specification.a970de6d.md",
+    "context/design/tools/api-extraction-from-code.md/steps/API Specification.85058115.md",
+    "context/design/tools/api-extraction-from-code.md/steps/API Specification.179a2421.md",
+    "context/design/tools/api-extraction-from-code.md/steps/API Specification.951cea2f.md",
+    "context/design/tools/api-extraction-from-code.md/steps/API Specification.dcd0a00d.md",
+    "context/design/tools/api-extraction-from-code.md/steps/response.2d0ab3e1.md",
+    "context/design/tools/api-extraction-from-code.md/20251022_123612.103a8ed9.md",
+    "context/design/tools/api-extraction-from-code.md/steps/prompt.b8a81f2f.md",
+    "design/concepts/ApplicationAssignments/ApplicationAssignmentsDesign.md",
+    "design/tools/api-extraction-from-code.md",
+    "design/concepts/ApplicationAssignments/ApplicationAssignmentsSpec.md",
     "design/concepts/ReviewRecords/interesting-scenarios.md",
-    "Untitled.md",
-    "context/design/concepts/ReviewRecords/testing.md/20251015_063828.c63913fc.md",
-    "context/design/concepts/ReviewRecords/implementation.md/20251015_063616.acefa3f0.md",
-    "context/design/concepts/ReviewRecords/implementation.md/20251015_053902.f014cde2.md",
-    "context/design/concepts/ReviewRecords/implementation.md/20251015_053115.0a310575.md",
-    "context/design/concepts/ReviewRecords/implementation.md/20251015_053032.13dfe56f.md",
-    "context/design/concepts/EventDirectory/debugging.md/20251015_025223.aa7e93f2.md",
-    "design/concepts/EventDirectory/interesting-scenarios.md",
-    "context/design/concepts/EventDirectory/debugging.md/20251015_023608.43b10183.md",
-    "context/design/concepts/EventDirectory/testing.md/20251015_022053.4a28e8f9.md",
-    "context/design/concepts/EventDirectory/testing.md/20251015_022012.1ac62acb.md",
-    "context/design/concepts/EventDirectory/testing.md/20251015_010643.0bc765fd.md",
-    "context/design/concepts/EventDirectory/testing.md/20251015_010457.e960b2a3.md",
-    "context/design/concepts/EventDirectory/implementation.md/20251015_030311.968c52f6.md",
-    "context/design/concepts/EventDirectory/implementation.md/20251015_030240.f47dd875.md",
-    "context/design/concepts/EventDirectory/implementation.md/20251015_004924.d9af7b12.md",
-    "context/design/concepts/EventDirectory/implementation.md/20251015_004857.ecfe9acd.md",
-    "context/design/concepts/EventDirectory/implementation.md/20251015_004308.7f181eec.md",
-    "context/design/concepts/EventDirectory/implementation.md/20251015_004210.79dfdc47.md",
-    "design/concepts/EventDirectory/implementation.md",
-    "context/design/concepts/ApplicationStorage/testing.md/20251015_042625.8397532d.md",
-    "design/concepts/ApplicationStorage/interesting-scenarios.md",
-    "context/design/concepts/ApplicationStorage/implementation.md/20251015_041410.df3d6a6e.md",
-    "context/design/concepts/ApplicationStorage/implementation.md/20251015_041318.5bb03ad8.md",
-    "context/design/concepts/ApplicationStorage/implementation.md/20251015_040554.a9f3dd75.md",
+    "design/tools/api-extraction-from-spec.md",
+    "src/api-spec.md",
+    "context/design/tools/api-extraction-from-code.md/20251022_123152.93d18d4d.md",
+    "context/design/tools/api-extraction-from-code.md/steps/API Specification.ff5fa2be.md",
+    "context/design/tools/api-extraction-from-code.md/steps/API Specification.47f01790.md",
+    "context/design/tools/api-extraction-from-code.md/steps/API Specification.06393392.md",
+    "context/design/tools/api-extraction-from-code.md/steps/API Specification.126adb26.md",
+    "context/design/tools/api-extraction-from-code.md/steps/API Specification.0f58570e.md",
+    "context/design/tools/api-extraction-from-code.md/steps/response.ed6e36d1.md",
+    "context/design/tools/api-extraction-from-code.md/steps/prompt.2e341510.md",
+    "context/design/tools/api-extraction-from-code.md/steps/prompt.14062e68.md",
+    "context/design/tools/api-extraction-from-code.md/steps/file.88bd3e70.md",
+    "context/design/tools/api-extraction-from-code.md/steps/approach.5df2171f.md",
+    "context/design/tools/api-extraction-from-code.md/steps",
+    "context/design/tools",
+    "context/deno.json",
     "context/design/concepts/ReviewRecords/testing.md/steps",
     "context/design/concepts/ReviewRecords/implementation.md/steps",
     "context/design/concepts/ReviewRecords",
     "context/design/concepts/ApplicationAssignments/testing.md/steps",
     "context/design/concepts/ApplicationAssignments/implementation.md/steps",
     "context/design/concepts/ApplicationAssignments",
-    "context/design/concepts/ApplicationStorage/testing.md/steps",
-    "src/utils/gemini-llm.ts",
-    "src/gemini-llm.ts",
-    "context/design/concepts/ApplicationStorage/implementation.md/steps"
+    "context/design/concepts/ApplicationStorage/testing.md/steps"
   ]
 }

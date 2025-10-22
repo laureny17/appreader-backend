@@ -1,31 +1,3 @@
-[@api-extraction-from-spec](api-extraction-from-spec.md)
-
-# Extracting from code
-
-The following is an explanation of how concepts are implemented, for the purposes of understanding how to extract an API.
-
-[@implementing-concepts](../background/implementing-concepts.md)
-
-# prompt:
-
-Now, analyze the following Concept Implementation and generate the API documentation based on these instructions.
-[ApplicationAssignmentsSpec](../concepts/ApplicationAssignments/ApplicationAssignmentsSpec.md)
-[@ApplicationAssignmentsConcept](src/concepts/ApplicationAssignments/ApplicationAssignmentsConcept.ts)
-[ApplicationStorageSpec](../concepts/ApplicationStorage/ApplicationStorageSpec.md)
-[@ApplicationStorageConcept](src/concepts/ApplicationStorage/ApplicationStorageConcept.ts)
-[AuthAccountsSpec](../concepts/AuthAccounts/AuthAccountsSpec.md)
-[@AuthAccountsConcept](src/concepts/AuthAccounts/AuthAccountsConcept.ts)
-[EventDirectorySpec](../concepts/EventDirectory/EventDirectorySpec.md)
-[@EventDirectoryConcept](src/concepts/EventDirectory/EventDirectoryConcept.ts)
-[ReviewRecordsSpec](../concepts/ReviewRecords/ReviewRecordsSpec.md)
-[@ReviewRecordsConcept](src/concepts/ReviewRecords/ReviewRecordsConcept.ts)
-
-# response:
-
-Here is the API documentation for the provided Concept Specifications.
-
----
-
 # API Specification: ApplicationAssignments Concept
 
 **Purpose:** manage the assignment of applications to reviewers
