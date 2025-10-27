@@ -1,0 +1,69 @@
+Scanning for concepts in ./src/concepts...
+- Registering concept: ReviewRecords at /api/ReviewRecords
+  - Endpoint: POST /api/ReviewRecords/submitReview
+  - Endpoint: POST /api/ReviewRecords/setScore
+  - Endpoint: POST /api/ReviewRecords/editReview
+  - Endpoint: POST /api/ReviewRecords/addRedFlag
+  - Endpoint: POST /api/ReviewRecords/removeRedFlag
+  - Endpoint: POST /api/ReviewRecords/addComment
+  - Endpoint: POST /api/ReviewRecords/editComment
+  - Endpoint: POST /api/ReviewRecords/deleteComment
+  - Endpoint: POST /api/ReviewRecords/_getReviewsWithScoresByApplication
+  - Endpoint: POST /api/ReviewRecords/_calculateWeightedAverages
+- Registering concept: AuthAccounts at /api/AuthAccounts
+  - Endpoint: POST /api/AuthAccounts/register
+  - Endpoint: POST /api/AuthAccounts/login
+  - Endpoint: POST /api/AuthAccounts/_getAccountByUserId
+  - Endpoint: POST /api/AuthAccounts/_getAccountByEmail
+  - Endpoint: POST /api/AuthAccounts/_getNameByUserId
+  - Endpoint: POST /api/AuthAccounts/_getAccountByIdSafe
+  - Endpoint: POST /api/AuthAccounts/_getAllUsers
+- Registering concept: LikertSurvey at /api/LikertSurvey
+  - Endpoint: POST /api/LikertSurvey/createSurvey
+  - Endpoint: POST /api/LikertSurvey/addQuestion
+  - Endpoint: POST /api/LikertSurvey/submitResponse
+  - Endpoint: POST /api/LikertSurvey/updateResponse
+  - Endpoint: POST /api/LikertSurvey/_getSurveyQuestions
+  - Endpoint: POST /api/LikertSurvey/_getSurveyResponses
+  - Endpoint: POST /api/LikertSurvey/_getRespondentAnswers
+- Registering concept: EventDirectory at /api/EventDirectory
+  - Endpoint: POST /api/EventDirectory/_isAdminInternal
+  - Endpoint: POST /api/EventDirectory/createEvent
+  - Endpoint: POST /api/EventDirectory/activateEvent
+  - Endpoint: POST /api/EventDirectory/inactivateEvent
+  - Endpoint: POST /api/EventDirectory/updateEventConfig
+  - Endpoint: POST /api/EventDirectory/addReader
+  - Endpoint: POST /api/EventDirectory/removeReader
+  - Endpoint: POST /api/EventDirectory/addAdmin
+  - Endpoint: POST /api/EventDirectory/removeAdmin
+  - Endpoint: POST /api/EventDirectory/_getEventByName
+  - Endpoint: POST /api/EventDirectory/_getEventById
+  - Endpoint: POST /api/EventDirectory/_isReaderVerified
+  - Endpoint: POST /api/EventDirectory/_getUserMembership
+  - Endpoint: POST /api/EventDirectory/_getVerifiedEventsForUser
+  - Endpoint: POST /api/EventDirectory/_getPendingReadersForEvent
+  - Endpoint: POST /api/EventDirectory/_isAdmin
+  - Endpoint: POST /api/EventDirectory/_getQuestionsForEvent
+  - Endpoint: POST /api/EventDirectory/getAllEvents
+  - Endpoint: POST /api/EventDirectory/_getVerifiedReadersForEvent
+  - Endpoint: POST /api/EventDirectory/_getAllMembersForEvent
+- Registering concept: ApplicationAssignments at /api/ApplicationAssignments
+  - Endpoint: POST /api/ApplicationAssignments/registerApplicationForAssignment
+  - Endpoint: POST /api/ApplicationAssignments/getNextAssignment
+  - Endpoint: POST /api/ApplicationAssignments/skipAssignment
+  - Endpoint: POST /api/ApplicationAssignments/submitAndIncrement
+- Registering concept: ApplicationStorage at /api/ApplicationStorage
+  - Endpoint: POST /api/ApplicationStorage/addApplication
+  - Endpoint: POST /api/ApplicationStorage/generateAIComments
+  - Endpoint: POST /api/ApplicationStorage/_getAICommentsByApplication
+  - Endpoint: POST /api/ApplicationStorage/_getApplication
+  - Endpoint: POST /api/ApplicationStorage/_getApplicationsByEvent
+
+Server listening on http://localhost:8000
+[0m[1m[31merror[0m: Uncaught (in promise) AddrInUse: Address already in use (os error 48)
+  Deno.serve({ port: PORT }, app.fetch);
+[0m[31m       ^[0m
+    at [0m[1m[3mlisten[0m ([0m[36mext:deno_net/01_net.js[0m:[0m[33m594[0m:[0m[33m35[0m)
+    at [0m[1m[3mserveInner[0m ([0m[36mext:deno_http/00_serve.ts[0m:[0m[33m675[0m:[0m[33m16[0m)
+    at [0m[1m[3mObject.serve[0m ([0m[36mext:deno_http/00_serve.ts[0m:[0m[33m591[0m:[0m[33m10[0m)
+    at [0m[1m[3mmain[0m ([0m[36mfile:///Users/lauren/Desktop/classes/6.1040/appreader-backend/src/concept_server.ts[0m:[0m[33m126[0m:[0m[33m8[0m)

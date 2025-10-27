@@ -311,4 +311,14 @@ ${rubric.join("\n")}
   ): Promise<ApplicationDoc | null> {
     return this.applications.findOne({ _id: application });
   }
+
+  /**
+   * @_getApplicationsByEvent (event: Event): Array<ApplicationDoc>
+   * @effects: return all applications for a given event
+   */
+  async _getApplicationsByEvent(
+    { event }: { event: Event },
+  ): Promise<ApplicationDoc[]> {
+    return this.applications.find({ event }).toArray();
+  }
 }

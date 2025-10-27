@@ -1,4 +1,4 @@
-import { assertEquals, assertExists } from "jsr:@std/assert";
+import { assert, assertEquals, assertExists } from "jsr:@std/assert";
 import { ID } from "@utils/types.ts";
 import { freshID, testDb } from "@utils/database.ts";
 import ReviewRecordsConcept from "./ReviewRecordsConcept.ts";
@@ -527,6 +527,188 @@ Deno.test("ReviewRecords Concept", async (t) => {
         deleteResult.error,
         "Only the author of the comment can delete it",
       );
+
+      await client.close();
+    },
+  );
+
+  await t.step(
+    "_getReviewsWithScoresByApplication returns all reviews and scores for an application",
+    async () => {
+      const [db, client] = await testDb();
+      const reviewRecords = new ReviewRecordsConcept(db);
+
+      const author1 = freshID() as ID;
+      const author2 = freshID() as ID;
+      const app = freshID() as ID;
+
+      // Create two reviews for the same application
+      const review1 = (await reviewRecords.submitReview({
+        author: author1,
+        application: app,
+        currentTime: new Date(),
+      })) as { review: ID };
+      const review2 = (await reviewRecords.submitReview({
+        author: author2,
+        application: app,
+        currentTime: new Date(),
+      })) as { review: ID };
+
+      // Add scores to both reviews
+      await reviewRecords.setScore({
+        author: author1,
+        review: review1.review,
+        criterion: "quality",
+        value: 5,
+      });
+      await reviewRecords.setScore({
+        author: author1,
+        review: review1.review,
+        criterion: "creativity",
+        value: 4,
+      });
+      await reviewRecords.setScore({
+        author: author2,
+        review: review2.review,
+        criterion: "quality",
+        value: 3,
+      });
+
+      // Get reviews with scores
+      const result = await reviewRecords._getReviewsWithScoresByApplication({ application: app });
+
+      assert("error" in result ? false : true, "Should return reviews");
+      if ("error" in result) {
+        throw new Error(`Failed: ${result.error}`);
+      }
+      assertEquals(result.length, 2, "Should have 2 reviews");
+      const r1 = result.find((r) => r.author === author1);
+      const r2 = result.find((r) => r.author === author2);
+      assertExists(r1);
+      assertExists(r2);
+      assertEquals(r1!.scores.length, 2, "First review should have 2 scores");
+      assertEquals(r2!.scores.length, 1, "Second review should have 1 score");
+      assertEquals(r1!.scores.find((s) => s.criterion === "quality")?.value, 5);
+      assertEquals(r1!.scores.find((s) => s.criterion === "creativity")?.value, 4);
+      assertEquals(r2!.scores.find((s) => s.criterion === "quality")?.value, 3);
+
+      await client.close();
+    },
+  );
+
+  await t.step(
+    "_calculateWeightedAverages calculates weighted averages correctly",
+    async () => {
+      const [db, client] = await testDb();
+      const reviewRecords = new ReviewRecordsConcept(db);
+
+      const author1 = freshID() as ID;
+      const author2 = freshID() as ID;
+      const app1 = freshID() as ID;
+      const app2 = freshID() as ID;
+
+      // Review 1 for app1 with scores
+      const review1 = (await reviewRecords.submitReview({
+        author: author1,
+        application: app1,
+        currentTime: new Date(),
+      })) as { review: ID };
+      await reviewRecords.setScore({
+        author: author1,
+        review: review1.review,
+        criterion: "quality",
+        value: 5,
+      });
+      await reviewRecords.setScore({
+        author: author1,
+        review: review1.review,
+        criterion: "creativity",
+        value: 3,
+      });
+
+      // Review 2 for app1 with different scores
+      const review2 = (await reviewRecords.submitReview({
+        author: author2,
+        application: app1,
+        currentTime: new Date(),
+      })) as { review: ID };
+      await reviewRecords.setScore({
+        author: author2,
+        review: review2.review,
+        criterion: "quality",
+        value: 4,
+      });
+      await reviewRecords.setScore({
+        author: author2,
+        review: review2.review,
+        criterion: "creativity",
+        value: 2,
+      });
+
+      // Review for app2
+      const review3 = (await reviewRecords.submitReview({
+        author: author1,
+        application: app2,
+        currentTime: new Date(),
+      })) as { review: ID };
+      await reviewRecords.setScore({
+        author: author1,
+        review: review3.review,
+        criterion: "quality",
+        value: 5,
+      });
+      await reviewRecords.setScore({
+        author: author1,
+        review: review3.review,
+        criterion: "creativity",
+        value: 5,
+      });
+
+      // Calculate weighted averages with weights: quality=0.7, creativity=0.3
+      const weights = { quality: 0.7, creativity: 0.3 };
+      const result = await reviewRecords._calculateWeightedAverages({ weights });
+
+      assert("error" in result ? false : true, "Should return weighted averages");
+      if ("error" in result) {
+        throw new Error(`Failed: ${result.error}`);
+      }
+
+      assertEquals(result.length, 2, "Should have 2 applications");
+
+      const r1 = result.find((r) => r.application === app1);
+      const r2 = result.find((r) => r.application === app2);
+
+      assertExists(r1);
+      assertExists(r2);
+      assertEquals(r1!.numReviews, 2, "App1 should have 2 reviews");
+      assertEquals(r2!.numReviews, 1, "App2 should have 1 review");
+
+      // For app1: Review 1 weighted avg = (5*0.7 + 3*0.3) / (0.7+0.3) = 4.4
+      //          Review 2 weighted avg = (4*0.7 + 2*0.3) / (0.7+0.3) = 3.4
+      //          Final: (4.4 + 3.4) / 2 = 3.9
+      const expectedApp1 = (4.4 + 3.4) / 2;
+      assert(Math.abs(r1!.weightedAverage - expectedApp1) < 0.01, `App1 weighted average should be ~3.9, got ${r1!.weightedAverage}`);
+
+      // For app2: weighted avg = (5*0.7 + 5*0.3) / (0.7+0.3) = 5.0
+      assert(Math.abs(r2!.weightedAverage - 5.0) < 0.01, `App2 weighted average should be 5.0, got ${r2!.weightedAverage}`);
+
+      await client.close();
+    },
+  );
+
+  await t.step(
+    "_calculateWeightedAverages returns error for zero total weight",
+    async () => {
+      const [db, client] = await testDb();
+      const reviewRecords = new ReviewRecordsConcept(db);
+
+      const weights = { quality: 0, creativity: 0 };
+      const result = await reviewRecords._calculateWeightedAverages({ weights });
+
+      if (!("error" in result)) {
+        throw new Error("Should return error for zero total weight");
+      }
+      assertEquals(result.error, "Total weight must be greater than zero");
 
       await client.close();
     },

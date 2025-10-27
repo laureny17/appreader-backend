@@ -1,220 +1,6 @@
-# API Specification: ApplicationAssignments Concept
-
-**Purpose:** manage the assignment of applications to reviewers
-
----
-
-## API Endpoints
-
-### POST /api/ApplicationAssignments/assign
-
-**Description:** Assigns a given application to a specific reviewer.
-
-**Requirements:**
-- no Assignment for the given application and reviewer already exists
-
-**Effects:**
-- creates a new Assignment `a`
-- sets the application of `a` to `application`
-- sets the reviewer of `a` to `reviewer`
-- returns `a` as `assignment`
-
-**Request Body:**
-```json
-{
-  "application": "string",
-  "reviewer": "string"
-}
-```
-
-**Success Response Body (Action):**
-```json
-{
-  "assignment": "string"
-}
-```
-
-**Error Response Body:**
-```json
-{
-  "error": "string"
-}
-```
----
-
-### POST /api/ApplicationAssignments/unassign
-
-**Description:** Removes the assignment of an application from a reviewer.
-
-**Requirements:**
-- an Assignment for the given application and reviewer exists
-
-**Effects:**
-- deletes the Assignment for the given application and reviewer
-
-**Request Body:**
-```json
-{
-  "application": "string",
-  "reviewer": "string"
-}
-```
-
-**Success Response Body (Action):**
-```json
-{}
-```
-
-**Error Response Body:**
-```json
-{
-  "error": "string"
-}
-```
----
-
-### POST /api/ApplicationAssignments/_getAssignments
-
-**Description:** Retrieves all assignments for a given application.
-
-**Requirements:**
-- true
-
-**Effects:**
-- returns the set of all assignments `a` such that `a`'s application is `application`, each with its assignment and reviewer
-
-**Request Body:**
-```json
-{
-  "application": "string"
-}
-```
-
-**Success Response Body (Query):**
-```json
-[
-  {
-    "assignment": "string",
-    "reviewer": "string"
-  }
-]
-```
-
-**Error Response Body:**
-```json
-{
-  "error": "string"
-}
-```
----
-
-# API Specification: ApplicationStorage Concept
-
-**Purpose:** store file data associated with an application
-
----
-
-## API Endpoints
-
-### POST /api/ApplicationStorage/put
-
-**Description:** Stores or updates file data associated with an application.
-
-**Requirements:**
-- true
-
-**Effects:**
-- if an Application with `application` already exists, sets its content to `content`
-- otherwise, creates a new Application with `application` and sets its content to `content`
-
-**Request Body:**
-```json
-{
-  "application": "string",
-  "content": "string"
-}
-```
-
-**Success Response Body (Action):**
-```json
-{}
-```
-
-**Error Response Body:**
-```json
-{
-  "error": "string"
-}
-```
----
-
-### POST /api/ApplicationStorage/delete
-
-**Description:** Deletes file data associated with an application.
-
-**Requirements:**
-- an Application with `application` exists
-
-**Effects:**
-- deletes the Application with `application`
-
-**Request Body:**
-```json
-{
-  "application": "string"
-}
-```
-
-**Success Response Body (Action):**
-```json
-{}
-```
-
-**Error Response Body:**
-```json
-{
-  "error": "string"
-}
-```
----
-
-### POST /api/ApplicationStorage/_get
-
-**Description:** Retrieves the file data associated with an application.
-
-**Requirements:**
-- an Application with `application` exists
-
-**Effects:**
-- returns the content of the Application with `application`
-
-**Request Body:**
-```json
-{
-  "application": "string"
-}
-```
-
-**Success Response Body (Query):**
-```json
-[
-  {
-    "content": "string"
-  }
-]
-```
-
-**Error Response Body:**
-```json
-{
-  "error": "string"
-}
-```
----
-
 # API Specification: AuthAccounts Concept
 
-**Purpose:** support authentication by associating a user with a username and password
+**Purpose:** Handle user registration and login securely with hashed passwords and unique emails.
 
 ---
 
@@ -222,432 +8,1503 @@
 
 ### POST /api/AuthAccounts/register
 
-**Description:** Registers a new user with a unique username and password.
+**Description:** Creates a new user account with a unique email and hashed password.
 
 **Requirements:**
-- no User with the given `username` already exists
+
+- `name`, `email`, and `password` are provided.
+- No existing account with the same `email`.
 
 **Effects:**
-- creates a new User `u`
-- sets the username of `u` to `username`
-- sets the password of `u` to `password`
-- returns `u` as `user`
+
+- Hashes the password.
+- Creates a new user account and returns its ID.
 
 **Request Body:**
-```json
 {
-  "username": "string",
-  "password": "string"
+"name": "string",
+"email": "string",
+"password": "string"
 }
-```
 
 **Success Response Body (Action):**
-```json
 {
-  "user": "string"
+"user": "ID"
 }
-```
 
 **Error Response Body:**
-```json
 {
-  "error": "string"
+"error": "string"
 }
-```
+
 ---
 
 ### POST /api/AuthAccounts/login
 
-**Description:** Authenticates a user with the provided username and password.
+**Description:** Authenticates a user using their email and password.
 
 **Requirements:**
-- a User `u` with the given `username` and `password` exists
+
+- An account with the given `email` exists.
+- The provided `password` matches the stored hash.
 
 **Effects:**
-- returns `u` as `user`
+
+- Returns the authenticated user’s ID.
 
 **Request Body:**
-```json
 {
-  "username": "string",
-  "password": "string"
+"email": "string",
+"password": "string"
 }
-```
 
 **Success Response Body (Action):**
-```json
 {
-  "user": "string"
+"user": "ID"
 }
-```
 
 **Error Response Body:**
-```json
 {
-  "error": "string"
+"error": "string"
 }
-```
+
 ---
 
-### POST /api/AuthAccounts/_getUsername
+### POST /api/AuthAccounts/\_getAccountByUserId
 
-**Description:** Retrieves the username associated with a given user identifier.
+**Description:** Retrieves an account by its user ID.
 
 **Requirements:**
-- user exists
+
+- The user ID exists.
 
 **Effects:**
-- returns the username of the user
+
+- Returns the account document.
 
 **Request Body:**
-```json
 {
-  "user": "string"
+"userId": "ID"
 }
-```
 
 **Success Response Body (Query):**
-```json
 [
-  {
-    "username": "string"
-  }
+{
+"_id": "ID",
+"email": "string",
+"name": "string",
+"passwordHash": "string"
+}
 ]
-```
 
 **Error Response Body:**
-```json
 {
-  "error": "string"
+"error": "string"
 }
-```
+
+---
+
+### POST /api/AuthAccounts/\_getAccountByEmail
+
+**Description:** Retrieves an account by its email.
+
+**Requirements:**
+
+- An account with the given email exists.
+
+**Effects:**
+
+- Returns the account document.
+
+**Request Body:**
+{
+"email": "string"
+}
+
+**Success Response Body (Query):**
+[
+{
+"_id": "ID",
+"email": "string",
+"name": "string",
+"passwordHash": "string"
+}
+]
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
+### POST /api/AuthAccounts/\_getNameByUserId
+
+**Description:** Retrieves the name for a given user ID (without sensitive data).
+
+**Requirements:**
+
+- The user ID exists.
+
+**Effects:**
+
+- Returns the name of the user.
+
+**Request Body:**
+{
+"userId": "ID"
+}
+
+**Success Response Body (Query):**
+[
+{
+"name": "string"
+}
+]
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
+### POST /api/AuthAccounts/\_getAccountByIdSafe
+
+**Description:** Retrieves account details without password hash for a given user ID.
+
+**Requirements:**
+
+- The user ID exists.
+
+**Effects:**
+
+- Returns the account details without password hash.
+
+**Request Body:**
+{
+"userId": "ID"
+}
+
+**Success Response Body (Query):**
+[
+{
+"name": "string",
+"email": "string"
+}
+]
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
+### POST /api/AuthAccounts/\_getAllUsers
+
+**Description:** Retrieves all users in the system (for admin use).
+
+**Requirements:**
+
+- Caller is an admin.
+
+**Effects:**
+
+- Returns all user accounts with their details (without password hash).
+
+**Request Body:**
+{
+"caller": "ID"
+}
+
+**Success Response Body (Query):**
+[
+{
+"\_id": "ID",
+"name": "string",
+"email": "string"
+}
+]
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
+# API Specification: ApplicationAssignments Concept
+
+**Purpose:** Manage user-to-application assignment data, track reads, and assign applications one at a time to users for review, allowing skips.
+
+---
+
+## API Endpoints
+
+### POST /api/ApplicationAssignments/registerApplicationForAssignment
+
+**Description:** Registers a new application for assignment within an event.
+
+**Requirements:**
+
+- None; if already registered, no effect.
+
+**Effects:**
+
+- Creates an `AppStatus` entry for the `(application, event)` pair with `readsCompleted = 0` and empty readers list.
+
+**Request Body:**
+{
+"application": "ID",
+"event": "ID"
+}
+
+**Success Response Body (Action):**
+{}
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
+### POST /api/ApplicationAssignments/getNextAssignment
+
+**Description:** Assigns the next eligible application to a user for review.
+
+**Requirements:**
+
+- The user has no current assignment for this event.
+
+**Effects:**
+
+- Selects an application the user has not read/skipped and that has the fewest reads so far.
+- Creates a new `CurrentAssignment` record.
+
+**Request Body:**
+{
+"user": "ID",
+"event": "ID",
+"startTime": "Date"
+}
+
+**Success Response Body (Action):**
+{
+"assignment": {
+"\_id": "ID",
+"user": "ID",
+"application": "ID",
+"startTime": "Date",
+"event": "ID"
+}
+}
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
+### POST /api/ApplicationAssignments/skipAssignment
+
+**Description:** Allows a user to skip their current assignment.
+
+**Requirements:**
+
+- The specified assignment exists and belongs to the user.
+
+**Effects:**
+
+- Adds the user to the readers set for the related `AppStatus`.
+- Deletes the current assignment.
+
+**Request Body:**
+{
+"user": "ID",
+"assignment": {
+"\_id": "ID",
+"user": "ID",
+"application": "ID",
+"startTime": "Date",
+"event": "ID"
+}
+}
+
+**Success Response Body (Action):**
+{}
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
+### POST /api/ApplicationAssignments/submitAndIncrement
+
+**Description:** Submits a completed assignment and increments the read count for that application.
+
+**Requirements:**
+
+- The specified assignment exists and belongs to the user.
+
+**Effects:**
+
+- Increments `readsCompleted` in `AppStatus`.
+- Adds the user to the readers set.
+- Deletes the current assignment.
+- Returns the `application` ID.
+
+**Request Body:**
+{
+"user": "ID",
+"assignment": {
+"\_id": "ID",
+"user": "ID",
+"application": "ID",
+"startTime": "Date",
+"event": "ID"
+},
+"endTime": "Date"
+}
+
+**Success Response Body (Action):**
+{
+"application": "ID"
+}
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
+# API Specification: ApplicationStorage Concept
+
+**Purpose:** Store and manage applications and AI-generated review comments based on rubric and questions.
+
+---
+
+## API Endpoints
+
+### POST /api/ApplicationStorage/addApplication
+
+**Description:** Adds a new application to an event.
+
+**Requirements:**
+
+- `applicantID` and `applicantYear` are non-empty.
+- `answers` is non-empty.
+
+**Effects:**
+
+- Creates an application record for the event with applicant data and answers.
+
+**Request Body:**
+{
+"adder": "string",
+"event": "ID",
+"applicantID": "string",
+"applicantYear": "string",
+"answers": ["string"]
+}
+
+**Success Response Body (Action):**
+{
+"application": "ID",
+"event": "ID"
+}
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
+### POST /api/ApplicationStorage/generateAIComments
+
+**Description:** Generates AI feedback comments for an application using rubric and questions.
+
+**Requirements:**
+
+- Application with the given ID exists.
+
+**Effects:**
+
+- Deletes existing AI comments.
+- Inserts AI-generated comments grouped by category (`Strong`, `Weak`, `Attention`).
+
+**Request Body:**
+{
+"application": "ID",
+"questions": ["string"],
+"rubric": ["string"],
+"eligibilityCriteria": ["string"]
+}
+
+**Success Response Body (Action):**
+{}
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
+### POST /api/ApplicationStorage/\_getAICommentsByApplication
+
+**Description:** Retrieves all AI comments for a specific application.
+
+**Requirements:**
+
+- Application exists.
+
+**Effects:**
+
+- Returns all stored comments.
+
+**Request Body:**
+{
+"application": "ID"
+}
+
+**Success Response Body (Query):**
+[
+{
+"_id": "ID",
+"application": "ID",
+"category": "Strong|Weak|Attention",
+"quotedSnippet": "string",
+"justification": "string"
+}
+]
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
+### POST /api/ApplicationStorage/\_getApplication
+
+**Description:** Retrieves an application by its ID.
+
+**Requirements:**
+
+- Application exists.
+
+**Effects:**
+
+- Returns the application document.
+
+**Request Body:**
+{
+"application": "ID"
+}
+
+**Success Response Body (Query):**
+[
+{
+"\_id": "ID",
+"event": "ID",
+"applicantID": "string",
+"applicantYear": "string",
+"answers": ["string"]
+}
+]
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
+### POST /api/ApplicationStorage/\_getApplicationsByEvent
+
+**Description:** Retrieves all applications for a specific event.
+
+**Requirements:**
+
+- Event exists.
+
+**Effects:**
+
+- Returns all application documents for the event.
+
+**Request Body:**
+{
+"event": "ID"
+}
+
+**Success Response Body (Query):**
+[
+{
+"\_id": "ID",
+"event": "ID",
+"applicantID": "string",
+"applicantYear": "string",
+"answers": ["string"]
+}
+]
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
 ---
 
 # API Specification: EventDirectory Concept
 
-**Purpose:** provide a directory of events, each with a description and a timestamp
+**Purpose:** Manage events, admins, and reader memberships with configuration and verification controls.
 
 ---
 
 ## API Endpoints
 
-### POST /api/EventDirectory/create
+### POST /api/EventDirectory/createEvent
 
-**Description:** Creates a new event with a description and timestamp.
+**Description:** Creates a new event.
 
 **Requirements:**
-- true
+
+- Caller is an admin.
+- No event with the same name exists.
 
 **Effects:**
-- creates a new Event `e`
-- sets the description of `e` to `description`
-- sets the timestamp of `e` to `timestamp`
-- returns `e` as `event`
+
+- Adds a new event, sets it active, and returns its ID. Stores the optional `"endDate"` field if provided.
 
 **Request Body:**
-```json
 {
-  "description": "string",
-  "timestamp": "number"
+"caller": "ID",
+"name": "string",
+"requiredReadsPerApp": "number",
+"rubric": [
+{
+"name": "string",
+"description": "string",
+"scaleMin": "number",
+"scaleMax": "number"
 }
-```
+],
+"endDate": "Date (optional)"
+}
 
 **Success Response Body (Action):**
-```json
 {
-  "event": "string"
+"event": "ID"
 }
-```
 
 **Error Response Body:**
-```json
 {
-  "error": "string"
+"error": "string"
 }
-```
+
 ---
 
-### POST /api/EventDirectory/delete
+### POST /api/EventDirectory/activateEvent
 
-**Description:** Deletes an existing event.
+**Description:** Activates an event.
 
 **Requirements:**
-- an Event `e` with `event` exists
+
+- Caller is admin.
+- Event exists and is inactive.
 
 **Effects:**
-- deletes `e`
+
+- Sets `active = true`.
 
 **Request Body:**
-```json
 {
-  "event": "string"
+"caller": "ID",
+"name": "string"
 }
-```
 
 **Success Response Body (Action):**
-```json
 {}
-```
 
 **Error Response Body:**
-```json
 {
-  "error": "string"
+"error": "string"
 }
-```
+
 ---
 
-### POST /api/EventDirectory/_get
+### POST /api/EventDirectory/inactivateEvent
 
-**Description:** Retrieves the description and timestamp of a specific event.
+**Description:** Inactivates an event.
 
 **Requirements:**
-- an Event `e` with `event` exists
+
+- Caller is admin.
+- Event exists and is active.
 
 **Effects:**
-- returns the description and timestamp of `e`
+
+- Sets `active = false`.
 
 **Request Body:**
-```json
 {
-  "event": "string"
+"caller": "ID",
+"name": "string"
 }
-```
 
-**Success Response Body (Query):**
-```json
-[
-  {
-    "description": "string",
-    "timestamp": "number"
-  }
-]
-```
+**Success Response Body (Action):**
+{}
 
 **Error Response Body:**
-```json
 {
-  "error": "string"
+"error": "string"
 }
-```
+
 ---
 
-### POST /api/EventDirectory/_list
+### POST /api/EventDirectory/updateEventConfig
 
-**Description:** Lists all events in the directory with their details.
+**Description:** Updates event settings.
 
 **Requirements:**
-- true
+
+- Caller is admin.
+- Event exists.
 
 **Effects:**
-- returns the set of all Events, each with its event, description and timestamp
+
+- Updates `rubric`, `requiredReadsPerApp`, `eligibilityCriteria`, or `endDate` for the event.
 
 **Request Body:**
-```json
-{}
-```
+{
+"caller": "ID",
+"event": "ID",
+"requiredReadsPerApp": "number",
+"rubric": [
+{
+"name": "string",
+"description": "string",
+"scaleMin": "number",
+"scaleMax": "number"
+}
+],
+"eligibilityCriteria": ["string"],
+"endDate": "Date (optional)"
+}
 
-**Success Response Body (Query):**
-```json
-[
-  {
-    "event": "string",
-    "description": "string",
-    "timestamp": "number"
-  }
-]
-```
+**Success Response Body (Action):**
+{}
 
 **Error Response Body:**
-```json
 {
-  "error": "string"
+"error": "string"
 }
-```
+
+---
+
+### POST /api/EventDirectory/addReader
+
+**Description:** Approves a user as a verified reader for an event.
+
+**Requirements:**
+
+- Caller is admin.
+- Event exists.
+
+**Effects:**
+
+- Adds or updates a membership record with `verified = true`.
+
+**Request Body:**
+{
+"caller": "ID",
+"event": "ID",
+"user": "ID"
+}
+
+**Success Response Body (Action):**
+{}
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
+### POST /api/EventDirectory/removeReader
+
+**Description:** Revokes a reader’s verification.
+
+**Requirements:**
+
+- Caller is admin.
+- User is verified for the event.
+
+**Effects:**
+
+- Updates membership to `verified = false`.
+
+**Request Body:**
+{
+"caller": "ID",
+"event": "ID",
+"user": "ID"
+}
+
+**Success Response Body (Action):**
+{}
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
+### POST /api/EventDirectory/addAdmin
+
+**Description:** Grants admin privileges to a user.
+
+**Requirements:**
+
+- Caller is admin.
+- Target user is not already admin.
+
+**Effects:**
+
+- Inserts user into admins collection.
+
+**Request Body:**
+{
+"caller": "ID",
+"user": "ID"
+}
+
+**Success Response Body (Action):**
+{}
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
+### POST /api/EventDirectory/removeAdmin
+
+**Description:** Removes admin privileges.
+
+**Requirements:**
+
+- Caller is admin.
+- User is admin.
+
+**Effects:**
+
+- Deletes user from admin collection.
+
+**Request Body:**
+{
+"caller": "ID",
+"user": "ID"
+}
+
+**Success Response Body (Action):**
+{}
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
+### POST /api/EventDirectory/\_getEventByName
+
+**Description:** Retrieves event details by name.
+
+**Requirements:**
+
+- Event exists.
+
+**Effects:**
+
+- Returns event document.
+
+**Request Body:**
+{
+"name": "string"
+}
+
+**Success Response Body (Query):**
+[
+{
+"\_id": "ID",
+"name": "string",
+"active": "boolean",
+"requiredReadsPerApp": "number",
+"rubric": [
+{
+"name": "string",
+"description": "string",
+"scaleMin": "number",
+"scaleMax": "number"
+}
+],
+"eligibilityCriteria": ["string"],
+"endDate": "Date (optional)"
+}
+]
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
+### POST /api/EventDirectory/\_getEventById
+
+**Description:** Retrieves event details by event ID.
+
+**Requirements:**
+
+- Event with the given ID exists.
+
+**Effects:**
+
+- Returns the event document.
+
+**Request Body:**
+{
+"event": "ID"
+}
+
+**Success Response Body (Query):**
+[
+{
+"\_id": "ID",
+"name": "string",
+"active": "boolean",
+"requiredReadsPerApp": "number",
+"rubric": [
+{
+"name": "string",
+"description": "string",
+"scaleMin": "number",
+"scaleMax": "number"
+}
+],
+"eligibilityCriteria": ["string"],
+"endDate": "Date (optional)"
+}
+]
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
+### POST /api/EventDirectory/\_isReaderVerified
+
+**Description:** Checks whether a user is a verified reader for a given event.
+
+**Requirements:**
+
+- Event and user IDs are valid.
+
+**Effects:**
+
+- Returns the verification status.
+
+**Request Body:**
+{
+"event": "ID",
+"user": "ID"
+}
+
+**Success Response Body (Query):**
+{
+"verified": true | false
+}
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
+### POST /api/EventDirectory/\_getUserMembership
+
+**Description:** Retrieves the membership record for a user in a specific event.
+
+**Requirements:**
+
+- Event and user IDs are valid.
+
+**Effects:**
+
+- Returns the membership document if it exists.
+
+**Request Body:**
+{
+"event": "ID",
+"user": "ID"
+}
+
+**Success Response Body (Query):**
+[
+{
+"\_id": "ID",
+"event": "ID",
+"user": "ID",
+"verified": true | false
+}
+]
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
+### POST /api/EventDirectory/\_getVerifiedEventsForUser
+
+**Description:** Retrieves all events for which the user is a verified reader.
+
+**Requirements:**
+
+- User ID is valid.
+
+**Effects:**
+
+- Returns a list of event IDs.
+
+**Request Body:**
+{
+"user": "ID"
+}
+
+**Success Response Body (Query):**
+[
+{
+"event": "ID",
+"name": "string"
+}
+]
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
+### POST /api/EventDirectory/\_getPendingReadersForEvent
+
+**Description:** Retrieves all users who have requested to be readers for an event but are not yet verified.
+
+**Requirements:**
+
+- Event ID is valid.
+
+**Effects:**
+
+- Returns a list of user IDs who are pending verification for the event.
+
+**Request Body:**
+{
+"event": "ID"
+}
+
+**Success Response Body (Query):**
+[
+{
+"user": "ID"
+}
+]
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
+### POST /api/EventDirectory/\_isAdmin
+
+**Description:** Checks whether a user is an administrator.
+
+**Requirements:**
+
+- User ID is valid.
+
+**Effects:**
+
+- Returns the admin status of the user.
+
+**Request Body:**
+{
+"user": "ID"
+}
+
+**Success Response Body (Query):**
+{
+"isAdmin": true | false
+}
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
+### POST /api/EventDirectory/_getVerifiedReadersForEvent
+
+**Description:** Returns all verified readers for a specific event with their names.
+
+**Requirements:**
+
+- Event with the given ID exists.
+
+**Effects:**
+
+- Returns an array of verified members with their user IDs and names.
+
+**Request Body:**
+{
+"event": "ID"
+}
+
+**Success Response Body (Query):**
+[
+{
+"user": "ID",
+"name": "string"
+}
+]
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
+### POST /api/EventDirectory/_getAllMembersForEvent
+
+**Description:** Returns all members (both verified and unverified) for a specific event with their names.
+
+**Requirements:**
+
+- Event with the given ID exists.
+
+**Effects:**
+
+- Returns an array of all members with their user IDs, names, and verification status.
+
+**Request Body:**
+{
+"event": "ID"
+}
+
+**Success Response Body (Query):**
+[
+{
+"user": "ID",
+"name": "string",
+"verified": true | false
+}
+]
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
+### POST /api/EventDirectory/getAllEvents
+
+**Description:** Retrieves all events in the system (admin only).
+
+**Requirements:**
+
+- Caller is an admin.
+
+**Effects:**
+
+- Returns all events with their full details.
+
+**Request Body:**
+{}
+
+**Success Response Body (Query):**
+[
+{
+"\_id": "ID",
+"name": "string",
+"active": "boolean",
+"requiredReadsPerApp": "number",
+"rubric": [
+{
+"name": "string",
+"description": "string",
+"scaleMin": "number",
+"scaleMax": "number"
+}
+],
+"eligibilityCriteria": ["string"],
+"questions": ["string"],
+"endDate": "Date"
+}
+]
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
 ---
 
 # API Specification: ReviewRecords Concept
 
-**Purpose:** support storing review records for applications by reviewers
+**Purpose:** Store and manage reviews, scores, flags, and comments for each application.
 
 ---
 
 ## API Endpoints
 
-### POST /api/ReviewRecords/save
+### POST /api/ReviewRecords/submitReview
 
-**Description:** Saves or updates a review record for an application by a reviewer.
+**Description:** Submits a new review for an application.
 
 **Requirements:**
-- true
+
+- Author has not already reviewed the application.
 
 **Effects:**
-- if a Record for the given application and reviewer exists, sets its score to `score` and its comment to `comment`
-- otherwise, creates a new Record `r`, sets its application to `application`, its reviewer to `reviewer`, its score to `score`, and its comment to `comment`
-- returns the (new or updated) `r` as `record`
+
+- Creates a review document and returns its ID.
 
 **Request Body:**
-```json
 {
-  "application": "string",
-  "reviewer": "string",
-  "score": "number",
-  "comment": "string"
+"author": "ID",
+"application": "ID",
+"currentTime": "Date"
 }
-```
 
 **Success Response Body (Action):**
-```json
 {
-  "record": "string"
+"review": "ID"
 }
-```
 
 **Error Response Body:**
-```json
 {
-  "error": "string"
+"error": "string"
 }
-```
+
 ---
 
-### POST /api/ReviewRecords/delete
+### POST /api/ReviewRecords/setScore
 
-**Description:** Deletes a specific review record for an application by a reviewer.
+**Description:** Sets or updates a score for a criterion in a review.
 
 **Requirements:**
-- a Record for the given application and reviewer exists
+
+- Author must be the review’s creator.
 
 **Effects:**
-- deletes the Record for the given application and reviewer
+
+- Inserts or updates a score document for that criterion.
 
 **Request Body:**
-```json
 {
-  "application": "string",
-  "reviewer": "string"
+"author": "ID",
+"review": "ID",
+"criterion": "string",
+"value": "number"
 }
-```
 
 **Success Response Body (Action):**
-```json
-{}
-```
+{
+"application": "ID"
+}
 
 **Error Response Body:**
-```json
 {
-  "error": "string"
+"error": "string"
 }
-```
+
 ---
 
-### POST /api/ReviewRecords/_get
+### POST /api/ReviewRecords/editReview
 
-**Description:** Retrieves the score and comment of a specific review record.
+**Description:** Allows an author to mark a review as editable.
 
 **Requirements:**
-- a Record for the given application and reviewer exists
+
+- Editor is the author.
 
 **Effects:**
-- returns the score and comment of the Record for the given application and reviewer
+
+- Enables subsequent score edits.
 
 **Request Body:**
-```json
 {
-  "application": "string",
-  "reviewer": "string"
+"editor": "ID",
+"review": "ID"
 }
-```
 
-**Success Response Body (Query):**
-```json
-[
-  {
-    "score": "number",
-    "comment": "string"
-  }
-]
-```
+**Success Response Body (Action):**
+{
+"success": true
+}
 
 **Error Response Body:**
-```json
 {
-  "error": "string"
+"error": "string"
 }
-```
+
 ---
 
-### POST /api/ReviewRecords/_listForApplication
+### POST /api/ReviewRecords/addRedFlag
 
-**Description:** Lists all review records for a given application.
+**Description:** Adds a red flag to a review.
 
 **Requirements:**
-- true
+
+- Author is the review’s author.
+- Author hasn’t flagged this review before.
 
 **Effects:**
-- returns the set of all Records `r` such that `r`'s application is `application`, each with its record, reviewer, score and comment
+
+- Creates a RedFlag document.
 
 **Request Body:**
-```json
 {
-  "application": "string"
+"author": "ID",
+"review": "ID"
 }
-```
 
-**Success Response Body (Query):**
-```json
-[
-  {
-    "record": "string",
-    "reviewer": "string",
-    "score": "number",
-    "comment": "string"
-  }
-]
-```
+**Success Response Body (Action):**
+{
+"flag": "ID"
+}
 
 **Error Response Body:**
-```json
 {
-  "error": "string"
+"error": "string"
 }
-```
+
 ---
 
-### POST /api/ReviewRecords/_listForReviewer
+### POST /api/ReviewRecords/removeRedFlag
 
-**Description:** Lists all review records made by a specific reviewer.
+**Description:** Removes a red flag.
 
 **Requirements:**
-- true
+
+- Author previously added a flag to this review.
 
 **Effects:**
-- returns the set of all Records `r` such that `r`'s reviewer is `reviewer`, each with its record, application, score and comment
+
+- Deletes the RedFlag document.
 
 **Request Body:**
-```json
 {
-  "reviewer": "string"
+"author": "ID",
+"review": "ID"
 }
-```
 
-**Success Response Body (Query):**
-```json
-[
-  {
-    "record": "string",
-    "application": "string",
-    "score": "number",
-    "comment": "string"
-  }
-]
-```
+**Success Response Body (Action):**
+{
+"success": true
+}
 
 **Error Response Body:**
-```json
 {
-  "error": "string"
+"error": "string"
 }
-```
+
 ---
+
+### POST /api/ReviewRecords/addComment
+
+**Description:** Adds a comment to a review.
+
+**Requirements:**
+
+- Both `text` and `quotedSnippet` are non-empty.
+
+**Effects:**
+
+- Creates a new Comment document.
+
+**Request Body:**
+{
+"author": "ID",
+"review": "ID",
+"text": "string",
+"quotedSnippet": "string"
+}
+
+**Success Response Body (Action):**
+{
+"comment": "ID"
+}
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
+### POST /api/ReviewRecords/editComment
+
+**Description:** Edits a comment text.
+
+**Requirements:**
+
+- Author is the comment’s author.
+- `newText` is non-empty.
+
+**Effects:**
+
+- Updates the comment text.
+
+**Request Body:**
+{
+"author": "ID",
+"comment": "ID",
+"newText": "string"
+}
+
+**Success Response Body (Action):**
+{
+"success": true
+}
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
+### POST /api/ReviewRecords/deleteComment
+
+**Description:** Deletes a comment.
+
+**Requirements:**
+
+- Author is the comment's author.
+
+**Effects:**
+
+- Deletes the comment.
+
+**Request Body:**
+{
+"author": "ID",
+"comment": "ID"
+}
+
+**Success Response Body (Action):**
+{
+"success": true
+}
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
+### POST /api/ReviewRecords/_getReviewsWithScoresByApplication
+
+**Description:** Retrieves all reviews and their scores for a specific application.
+
+**Requirements:**
+
+- Application exists.
+
+**Effects:**
+
+- Returns all reviews with their scores for the application.
+
+**Request Body:**
+{
+"application": "ID"
+}
+
+**Success Response Body (Query):**
+[
+{
+"review": "ID",
+"author": "ID",
+"submittedAt": "Date",
+"scores": [
+{
+"criterion": "string",
+"value": "number"
+}
+]
+}
+]
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
+### POST /api/ReviewRecords/_calculateWeightedAverages
+
+**Description:** Calculates weighted average scores for all applications based on provided criterion weights.
+
+**Requirements:**
+
+- Total weight must be greater than zero.
+
+**Effects:**
+
+- Returns weighted averages for each application.
+
+**Request Body:**
+{
+"weights": {
+"criterion1": "number",
+"criterion2": "number"
+}
+}
+
+**Success Response Body (Query):**
+[
+{
+"application": "ID",
+"weightedAverage": "number",
+"numReviews": "number"
+}
+]
+
+**Error Response Body:**
+{
+"error": "string"
+}

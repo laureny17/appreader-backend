@@ -371,4 +371,148 @@ export default class ReviewRecordsConcept {
 
     return { success: true };
   }
+
+  /**
+   * _getReviewsWithScoresByApplication (application: Application)
+   * purpose: Retrieves all reviews with their scores for a specific application.
+   * effects: Returns all reviews and their associated scores for the given application.
+   */
+  async _getReviewsWithScoresByApplication(
+    { application }: { application: Application },
+  ): Promise<Array<{
+    review: Review;
+    author: User;
+    submittedAt: Date;
+    scores: Array<{ criterion: string; value: number }>;
+  }> | { error: string }> {
+    // Get all reviews for this application
+    const reviews = await this.reviews.find({ application }).toArray();
+
+    if (reviews.length === 0) {
+      return [];
+    }
+
+    // Get all scores for these reviews
+    const reviewIds = reviews.map((r) => r._id);
+    const scores = await this.scores.find({
+      review: { $in: reviewIds },
+    }).toArray();
+
+    // Organize scores by review
+    const scoresByReview = new Map<Review, Array<{ criterion: string; value: number }>>();
+    for (const score of scores) {
+      if (!scoresByReview.has(score.review)) {
+        scoresByReview.set(score.review, []);
+      }
+      scoresByReview.get(score.review)!.push({
+        criterion: score.criterion,
+        value: score.value,
+      });
+    }
+
+    // Combine reviews with their scores
+    return reviews.map((review) => ({
+      review: review._id,
+      author: review.author,
+      submittedAt: review.submittedAt,
+      scores: scoresByReview.get(review._id) || [],
+    }));
+  }
+
+  /**
+   * _calculateWeightedAverages (weights: Record<string, number>)
+   * purpose: Calculates weighted averages for all applications based on provided criterion weights.
+   * effects: Returns weighted averages for each application.
+   */
+  async _calculateWeightedAverages(
+    { weights }: { weights: Record<string, number> },
+  ): Promise<
+    Array<{ application: Application; weightedAverage: number; numReviews: number }> |
+    { error: string }
+  > {
+    // Validate weights
+    const totalWeight = Object.values(weights).reduce((sum, w) => sum + w, 0);
+    if (totalWeight === 0) {
+      return { error: "Total weight must be greater than zero" };
+    }
+
+    // Get all reviews with scores
+    const allReviews = await this.reviews.find({}).toArray();
+    const reviewIds = allReviews.map((r) => r._id);
+
+    if (reviewIds.length === 0) {
+      return [];
+    }
+
+    const allScores = await this.scores.find({
+      review: { $in: reviewIds },
+    }).toArray();
+
+    // Organize scores by review
+    const scoresByReview = new Map<Review, Array<{ criterion: string; value: number }>>();
+    for (const score of allScores) {
+      if (!scoresByReview.has(score.review)) {
+        scoresByReview.set(score.review, []);
+      }
+      scoresByReview.get(score.review)!.push({
+        criterion: score.criterion,
+        value: score.value,
+      });
+    }
+
+    // Calculate weighted averages per application
+    const appResults = new Map<
+      Application,
+      { weightedSum: number; totalWeightUsed: number; numReviews: number }
+    >();
+
+    for (const review of allReviews) {
+      const scores = scoresByReview.get(review._id) || [];
+
+      if (!appResults.has(review.application)) {
+        appResults.set(review.application, {
+          weightedSum: 0,
+          totalWeightUsed: 0,
+          numReviews: 0,
+        });
+      }
+
+      const result = appResults.get(review.application)!;
+      result.numReviews += 1;
+
+      // Calculate weighted sum for this review
+      let reviewWeightedSum = 0;
+      let reviewTotalWeight = 0;
+
+      for (const { criterion, value } of scores) {
+        const weight = weights[criterion] || 0;
+        reviewWeightedSum += weight * value;
+        reviewTotalWeight += weight;
+      }
+
+      // Add to application totals
+      if (reviewTotalWeight > 0) {
+        const weightedAverage = reviewWeightedSum / reviewTotalWeight;
+        result.weightedSum += weightedAverage;
+        result.totalWeightUsed += 1;
+      }
+    }
+
+    // Convert to array and calculate final weighted averages
+    const results: Array<{ application: Application; weightedAverage: number; numReviews: number }> = [];
+    for (const [application, data] of appResults) {
+      if (data.numReviews > 0) {
+        const weightedAverage = data.totalWeightUsed > 0
+          ? data.weightedSum / data.totalWeightUsed
+          : 0;
+        results.push({
+          application,
+          weightedAverage,
+          numReviews: data.numReviews,
+        });
+      }
+    }
+
+    return results;
+  }
 }

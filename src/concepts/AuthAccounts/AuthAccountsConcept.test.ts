@@ -1,5 +1,5 @@
 import { assert, assertEquals, assertExists } from "jsr:@std/assert";
-import { testDb } from "../../utils/database.ts";
+import { freshID, testDb } from "../../utils/database.ts";
 import AuthAccountsConcept from "./AuthAccountsConcept.ts";
 import { ID } from "../../utils/types.ts";
 
@@ -194,6 +194,91 @@ Deno.test("AuthAccountsConcept functionality", async (testContext) => {
           throw new Error(`User B login failed: ${loginB.error}`);
         }
         assertEquals(loginB.user, idB);
+      },
+    );
+
+    await testContext.step(
+      "_getNameByUserId retrieves name for existing user",
+      async () => {
+        const name = "Test User Name";
+        const email = "testname@example.com";
+        const password = "password123";
+
+        const registerResult = await authAccounts.register({ name, email, password });
+        assert("user" in registerResult);
+        const userId = registerResult.user;
+
+        const retrievedName = await authAccounts._getNameByUserId(userId);
+        assertEquals(retrievedName, name);
+      },
+    );
+
+    await testContext.step(
+      "_getNameByUserId returns null for non-existent user",
+      async () => {
+        const nonExistentUserId = freshID();
+        const result = await authAccounts._getNameByUserId(nonExistentUserId);
+        assertEquals(result, null);
+      },
+    );
+
+    await testContext.step(
+      "_getAccountByIdSafe retrieves account details without password",
+      async () => {
+        const name = "Safe User";
+        const email = "safe@example.com";
+        const password = "password123";
+
+        const registerResult = await authAccounts.register({ name, email, password });
+        assert("user" in registerResult);
+        const userId = registerResult.user;
+
+        const accountSafe = await authAccounts._getAccountByIdSafe(userId);
+        assert(accountSafe !== null);
+        assertEquals(accountSafe!.name, name);
+        assertEquals(accountSafe!.email, email);
+        // Verify that passwordHash is NOT included
+        assert(!("passwordHash" in accountSafe!));
+      },
+    );
+
+    await testContext.step(
+      "_getAccountByIdSafe returns null for non-existent user",
+      async () => {
+        const nonExistentUserId = freshID();
+        const result = await authAccounts._getAccountByIdSafe(nonExistentUserId);
+        assertEquals(result, null);
+      },
+    );
+
+    await testContext.step(
+      "_getAllUsers returns error for non-admin",
+      async () => {
+        const nonAdminUser = freshID() as ID;
+        const result = await authAccounts._getAllUsers(nonAdminUser);
+        assert("error" in result, "Should return error for non-admin");
+        assertEquals(result.error, "Only admins can retrieve all users.");
+      },
+    );
+
+    await testContext.step(
+      "_getAllUsers returns all users for admin",
+      async () => {
+        // Create an admin user
+        const adminUserId = freshID() as ID;
+        await db.collection("EventDirectory.admins").insertOne({ _id: adminUserId as any });
+
+        // Get all users
+        const result = await authAccounts._getAllUsers(adminUserId);
+        assert(Array.isArray(result), "Should return array");
+        assert(result.length >= 3, "Should have at least the registered users");
+
+        // Verify structure - should have _id, name, email but NOT passwordHash
+        const firstUser = result[0];
+        assert("_id" in firstUser, "Should have _id");
+        assert("name" in firstUser, "Should have name");
+        assert("email" in firstUser, "Should have email");
+        assert(!("passwordHash" in firstUser), "Should NOT have passwordHash");
       },
     );
   } finally {

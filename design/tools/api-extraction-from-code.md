@@ -22,43 +22,39 @@ Now, analyze the following Concept Implementation and generate the API documenta
 
 # response:
 
-Here is the API documentation for the provided Concept Specifications.
 
----
+# response:
 
 # API Specification: ApplicationAssignments Concept
 
-**Purpose:** manage the assignment of applications to reviewers
+**Purpose:** manage the assignment of users to applications, allowing users to apply for applications and administrators to assign them
 
 ---
 
 ## API Endpoints
 
-### POST /api/ApplicationAssignments/assign
+### POST /api/ApplicationAssignments/applyForApplication
 
-**Description:** Assigns a given application to a specific reviewer.
+**Description:** Allows a user to apply for a specific application, creating an assignment record.
 
 **Requirements:**
-- no Assignment for the given application and reviewer already exists
+- user and application exist; no existing assignment for this user and application with status "applied" or "assigned"
 
 **Effects:**
-- creates a new Assignment `a`
-- sets the application of `a` to `application`
-- sets the reviewer of `a` to `reviewer`
-- returns `a` as `assignment`
+- creates a new Assignment `a`; sets `a.user` to `user`, `a.application` to `application`, `a.status` to "applied", `a.timestamp` to current time; returns `a` as `assignmentId`
 
 **Request Body:**
 ```json
 {
-  "application": "string",
-  "reviewer": "string"
+  "user": "ID",
+  "application": "ID"
 }
 ```
 
 **Success Response Body (Action):**
 ```json
 {
-  "assignment": "string"
+  "assignmentId": "ID"
 }
 ```
 
@@ -70,21 +66,54 @@ Here is the API documentation for the provided Concept Specifications.
 ```
 ---
 
-### POST /api/ApplicationAssignments/unassign
+### POST /api/ApplicationAssignments/assignUserToApplication
 
-**Description:** Removes the assignment of an application from a reviewer.
+**Description:** Assigns a user to an application, updating an existing assignment or creating a new one.
 
 **Requirements:**
-- an Assignment for the given application and reviewer exists
+- user and application exist; no existing assignment for this user and application with status "assigned"
 
 **Effects:**
-- deletes the Assignment for the given application and reviewer
+- if an assignment `a` for `user` and `application` exists, updates `a.status` to "assigned" and `a.timestamp` to current time; otherwise, creates a new Assignment `a`, sets `a.user` to `user`, `a.application` to `application`, `a.status` to "assigned", `a.timestamp` to current time; returns `a` as `assignmentId`
 
 **Request Body:**
 ```json
 {
-  "application": "string",
-  "reviewer": "string"
+  "user": "ID",
+  "application": "ID"
+}
+```
+
+**Success Response Body (Action):**
+```json
+{
+  "assignmentId": "ID"
+}
+```
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
+```
+---
+
+### POST /api/ApplicationAssignments/unassignUserFromApplication
+
+**Description:** Unassigns a user from an application by changing the assignment status.
+
+**Requirements:**
+- user and application exist; an existing assignment for this user and application with status "assigned"
+
+**Effects:**
+- updates the assignment `a` for `user` and `application` by setting `a.status` to "unassigned" and `a.timestamp` to current time
+
+**Request Body:**
+```json
+{
+  "user": "ID",
+  "application": "ID"
 }
 ```
 
@@ -101,20 +130,20 @@ Here is the API documentation for the provided Concept Specifications.
 ```
 ---
 
-### POST /api/ApplicationAssignments/_getAssignments
+### POST /api/ApplicationAssignments/_getAssignmentsByUser
 
-**Description:** Retrieves all assignments for a given application.
+**Description:** Retrieves all assignments associated with a given user.
 
 **Requirements:**
-- true
+- user exists
 
 **Effects:**
-- returns the set of all assignments `a` such that `a`'s application is `application`, each with its assignment and reviewer
+- returns a set of assignments associated with the given user
 
 **Request Body:**
 ```json
 {
-  "application": "string"
+  "user": "ID"
 }
 ```
 
@@ -122,8 +151,47 @@ Here is the API documentation for the provided Concept Specifications.
 ```json
 [
   {
-    "assignment": "string",
-    "reviewer": "string"
+    "id": "ID",
+    "application": "ID",
+    "status": "string",
+    "timestamp": "number"
+  }
+]
+```
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
+```
+---
+
+### POST /api/ApplicationAssignments/_getAssignmentsByApplication
+
+**Description:** Retrieves all assignments associated with a given application.
+
+**Requirements:**
+- application exists
+
+**Effects:**
+- returns a set of assignments associated with the given application
+
+**Request Body:**
+```json
+{
+  "application": "ID"
+}
+```
+
+**Success Response Body (Query):**
+```json
+[
+  {
+    "id": "ID",
+    "user": "ID",
+    "status": "string",
+    "timestamp": "number"
   }
 ]
 ```
@@ -138,28 +206,58 @@ Here is the API documentation for the provided Concept Specifications.
 
 # API Specification: ApplicationStorage Concept
 
-**Purpose:** store file data associated with an application
+**Purpose:** manage the storage and retrieval of user-specific application data
 
 ---
 
 ## API Endpoints
 
-### POST /api/ApplicationStorage/put
+### POST /api/ApplicationStorage/createApplication
 
-**Description:** Stores or updates file data associated with an application.
+**Description:** Registers a new application with the storage system.
 
 **Requirements:**
-- true
+- No application with the given `name` already exists.
 
 **Effects:**
-- if an Application with `application` already exists, sets its content to `content`
-- otherwise, creates a new Application with `application` and sets its content to `content`
+- Creates a new application `a`; sets `a.name` to `name`; returns `a` as `applicationId`.
 
 **Request Body:**
 ```json
 {
-  "application": "string",
-  "content": "string"
+  "name": "string"
+}
+```
+
+**Success Response Body (Action):**
+```json
+{
+  "applicationId": "ID"
+}
+```
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
+```
+---
+
+### POST /api/ApplicationStorage/deleteApplication
+
+**Description:** Deletes an existing application and all its associated data.
+
+**Requirements:**
+- Application with `applicationId` exists.
+
+**Effects:**
+- Deletes the application with `applicationId` and all its associated data (data points for all users).
+
+**Request Body:**
+```json
+{
+  "applicationId": "ID"
 }
 ```
 
@@ -176,20 +274,23 @@ Here is the API documentation for the provided Concept Specifications.
 ```
 ---
 
-### POST /api/ApplicationStorage/delete
+### POST /api/ApplicationStorage/saveData
 
-**Description:** Deletes file data associated with an application.
+**Description:** Stores or updates a piece of data for a user within a specific application.
 
 **Requirements:**
-- an Application with `application` exists
+- User exists (conceptually); Application with `applicationId` exists.
 
 **Effects:**
-- deletes the Application with `application`
+- Stores `data` for `user` associated with `applicationId`; if data for this user/application/key already exists, it is overwritten.
 
 **Request Body:**
 ```json
 {
-  "application": "string"
+  "user": "ID",
+  "applicationId": "ID",
+  "key": "string",
+  "data": "string"
 }
 ```
 
@@ -206,20 +307,22 @@ Here is the API documentation for the provided Concept Specifications.
 ```
 ---
 
-### POST /api/ApplicationStorage/_get
+### POST /api/ApplicationStorage/_getData
 
-**Description:** Retrieves the file data associated with an application.
+**Description:** Retrieves a specific piece of data for a user from an application.
 
 **Requirements:**
-- an Application with `application` exists
+- User exists (conceptually); Application with `applicationId` exists; Data for the given `user`, `applicationId`, and `key` exists.
 
 **Effects:**
-- returns the content of the Application with `application`
+- Returns the stored `data` for the given `user`, `applicationId`, and `key`.
 
 **Request Body:**
 ```json
 {
-  "application": "string"
+  "user": "ID",
+  "applicationId": "ID",
+  "key": "string"
 }
 ```
 
@@ -227,7 +330,42 @@ Here is the API documentation for the provided Concept Specifications.
 ```json
 [
   {
-    "content": "string"
+    "data": "string"
+  }
+]
+```
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
+```
+---
+
+### POST /api/ApplicationStorage/_listKeys
+
+**Description:** Lists all data keys stored for a user within a specific application.
+
+**Requirements:**
+- User exists (conceptually); Application with `applicationId` exists.
+
+**Effects:**
+- Returns a set of all keys associated with the given `user` and `applicationId`.
+
+**Request Body:**
+```json
+{
+  "user": "ID",
+  "applicationId": "ID"
+}
+```
+
+**Success Response Body (Query):**
+```json
+[
+  {
+    "key": "string"
   }
 ]
 ```
@@ -242,24 +380,21 @@ Here is the API documentation for the provided Concept Specifications.
 
 # API Specification: AuthAccounts Concept
 
-**Purpose:** support authentication by associating a user with a username and password
+**Purpose:** support the creation, authentication, and management of user accounts
 
 ---
 
 ## API Endpoints
 
-### POST /api/AuthAccounts/register
+### POST /api/AuthAccounts/createAccount
 
-**Description:** Registers a new user with a unique username and password.
+**Description:** Creates a new user account with a unique username and password.
 
 **Requirements:**
-- no User with the given `username` already exists
+- No user with the given `username` already exists.
 
 **Effects:**
-- creates a new User `u`
-- sets the username of `u` to `username`
-- sets the password of `u` to `password`
-- returns `u` as `user`
+- Creates a new User `u`; sets `u.username` to `username` and `u.password` to `password`; returns `u` as `userId`.
 
 **Request Body:**
 ```json
@@ -272,7 +407,7 @@ Here is the API documentation for the provided Concept Specifications.
 **Success Response Body (Action):**
 ```json
 {
-  "user": "string"
+  "userId": "ID"
 }
 ```
 
@@ -284,15 +419,15 @@ Here is the API documentation for the provided Concept Specifications.
 ```
 ---
 
-### POST /api/AuthAccounts/login
+### POST /api/AuthAccounts/authenticate
 
-**Description:** Authenticates a user with the provided username and password.
+**Description:** Authenticates a user based on their username and password.
 
 **Requirements:**
-- a User `u` with the given `username` and `password` exists
+- User with `username` and `password` exists.
 
 **Effects:**
-- returns `u` as `user`
+- Returns the `userId` of the authenticated user.
 
 **Request Body:**
 ```json
@@ -305,7 +440,7 @@ Here is the API documentation for the provided Concept Specifications.
 **Success Response Body (Action):**
 ```json
 {
-  "user": "string"
+  "userId": "ID"
 }
 ```
 
@@ -317,20 +452,82 @@ Here is the API documentation for the provided Concept Specifications.
 ```
 ---
 
-### POST /api/AuthAccounts/_getUsername
+### POST /api/AuthAccounts/changePassword
 
-**Description:** Retrieves the username associated with a given user identifier.
+**Description:** Allows an authenticated user to change their password.
 
 **Requirements:**
-- user exists
+- User with `userId` and `oldPassword` exists.
 
 **Effects:**
-- returns the username of the user
+- Updates the password of the user `userId` to `newPassword`.
 
 **Request Body:**
 ```json
 {
-  "user": "string"
+  "userId": "ID",
+  "oldPassword": "string",
+  "newPassword": "string"
+}
+```
+
+**Success Response Body (Action):**
+```json
+{}
+```
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
+```
+---
+
+### POST /api/AuthAccounts/deleteAccount
+
+**Description:** Deletes a user account and all associated authentication data.
+
+**Requirements:**
+- User with `userId` exists.
+
+**Effects:**
+- Deletes the user `userId` from the system.
+
+**Request Body:**
+```json
+{
+  "userId": "ID"
+}
+```
+
+**Success Response Body (Action):
+```json
+{}
+```
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
+```
+---
+
+### POST /api/AuthAccounts/_getAccountDetails
+
+**Description:** Retrieves the username for a given user ID.
+
+**Requirements:**
+- User with `userId` exists.
+
+**Effects:**
+- Returns the username associated with `userId`.
+
+**Request Body:**
+```json
+{
+  "userId": "ID"
 }
 ```
 
@@ -353,37 +550,37 @@ Here is the API documentation for the provided Concept Specifications.
 
 # API Specification: EventDirectory Concept
 
-**Purpose:** provide a directory of events, each with a description and a timestamp
+**Purpose:** provide a centralized directory for events, allowing users to register, view, and manage event details
 
 ---
 
 ## API Endpoints
 
-### POST /api/EventDirectory/create
+### POST /api/EventDirectory/createEvent
 
-**Description:** Creates a new event with a description and timestamp.
+**Description:** Creates a new event with a given name, description, and start/end times.
 
 **Requirements:**
-- true
+- No event with the given `name` already exists.
+- `startTime` is before `endTime`.
 
 **Effects:**
-- creates a new Event `e`
-- sets the description of `e` to `description`
-- sets the timestamp of `e` to `timestamp`
-- returns `e` as `event`
+- Creates a new Event `e`; sets `e.name` to `name`, `e.description` to `description`, `e.startTime` to `startTime`, `e.endTime` to `endTime`; returns `e` as `eventId`.
 
 **Request Body:**
 ```json
 {
+  "name": "string",
   "description": "string",
-  "timestamp": "number"
+  "startTime": "number",
+  "endTime": "number"
 }
 ```
 
 **Success Response Body (Action):**
 ```json
 {
-  "event": "string"
+  "eventId": "ID"
 }
 ```
 
@@ -395,20 +592,25 @@ Here is the API documentation for the provided Concept Specifications.
 ```
 ---
 
-### POST /api/EventDirectory/delete
+### POST /api/EventDirectory/updateEvent
 
-**Description:** Deletes an existing event.
+**Description:** Updates the details of an existing event.
 
 **Requirements:**
-- an Event `e` with `event` exists
+- Event with `eventId` exists.
+- If `newStartTime` and `newEndTime` are provided, `newStartTime` must be before `newEndTime`.
 
 **Effects:**
-- deletes `e`
+- Updates the `name`, `description`, `startTime`, and/or `endTime` of the event `eventId` if provided.
 
 **Request Body:**
 ```json
 {
-  "event": "string"
+  "eventId": "ID",
+  "name": "string",
+  "description": "string",
+  "startTime": "number",
+  "endTime": "number"
 }
 ```
 
@@ -425,20 +627,50 @@ Here is the API documentation for the provided Concept Specifications.
 ```
 ---
 
-### POST /api/EventDirectory/_get
+### POST /api/EventDirectory/deleteEvent
 
-**Description:** Retrieves the description and timestamp of a specific event.
+**Description:** Deletes an event from the directory.
 
 **Requirements:**
-- an Event `e` with `event` exists
+- Event with `eventId` exists.
 
 **Effects:**
-- returns the description and timestamp of `e`
+- Deletes the event `eventId` and all associated data.
 
 **Request Body:**
 ```json
 {
-  "event": "string"
+  "eventId": "ID"
+}
+```
+
+**Success Response Body (Action):**
+```json
+{}
+```
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
+```
+---
+
+### POST /api/EventDirectory/_getEventDetails
+
+**Description:** Retrieves the details of a specific event.
+
+**Requirements:**
+- Event with `eventId` exists.
+
+**Effects:**
+- Returns the `name`, `description`, `startTime`, and `endTime` of the event `eventId`.
+
+**Request Body:**
+```json
+{
+  "eventId": "ID"
 }
 ```
 
@@ -446,8 +678,10 @@ Here is the API documentation for the provided Concept Specifications.
 ```json
 [
   {
+    "name": "string",
     "description": "string",
-    "timestamp": "number"
+    "startTime": "number",
+    "endTime": "number"
   }
 ]
 ```
@@ -460,15 +694,15 @@ Here is the API documentation for the provided Concept Specifications.
 ```
 ---
 
-### POST /api/EventDirectory/_list
+### POST /api/EventDirectory/_listAllEvents
 
-**Description:** Lists all events in the directory with their details.
+**Description:** Lists all events currently in the directory.
 
 **Requirements:**
 - true
 
 **Effects:**
-- returns the set of all Events, each with its event, description and timestamp
+- Returns a set of all events, each with its `eventId`, `name`, `description`, `startTime`, and `endTime`.
 
 **Request Body:**
 ```json
@@ -479,9 +713,49 @@ Here is the API documentation for the provided Concept Specifications.
 ```json
 [
   {
-    "event": "string",
+    "eventId": "ID",
+    "name": "string",
     "description": "string",
-    "timestamp": "number"
+    "startTime": "number",
+    "endTime": "number"
+  }
+]
+```
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
+```
+---
+
+### POST /api/EventDirectory/_searchEventsByName
+
+**Description:** Searches for events whose names contain a given query string.
+
+**Requirements:**
+- true
+
+**Effects:**
+- Returns a set of events whose `name` contains the `query` string, each with its `eventId`, `name`, `description`, `startTime`, and `endTime`.
+
+**Request Body:**
+```json
+{
+  "query": "string"
+}
+```
+
+**Success Response Body (Query):**
+```json
+[
+  {
+    "eventId": "ID",
+    "name": "string",
+    "description": "string",
+    "startTime": "number",
+    "endTime": "number"
   }
 ]
 ```
@@ -496,30 +770,29 @@ Here is the API documentation for the provided Concept Specifications.
 
 # API Specification: ReviewRecords Concept
 
-**Purpose:** support storing review records for applications by reviewers
+**Purpose:** manage and store reviews for items, allowing users to submit ratings and comments
 
 ---
 
 ## API Endpoints
 
-### POST /api/ReviewRecords/save
+### POST /api/ReviewRecords/submitReview
 
-**Description:** Saves or updates a review record for an application by a reviewer.
+**Description:** Submits a new review for a given item by a user.
 
 **Requirements:**
-- true
+- `item` and `user` exist (conceptually); `rating` is between 1 and 5.
+- No existing review from `user` for `item`.
 
 **Effects:**
-- if a Record for the given application and reviewer exists, sets its score to `score` and its comment to `comment`
-- otherwise, creates a new Record `r`, sets its application to `application`, its reviewer to `reviewer`, its score to `score`, and its comment to `comment`
-- returns the (new or updated) `r` as `record`
+- Creates a new Review `r`; sets `r.item` to `item`, `r.user` to `user`, `r.rating` to `rating`, `r.comment` to `comment`, `r.timestamp` to current time; returns `r` as `reviewId`.
 
 **Request Body:**
 ```json
 {
-  "application": "string",
-  "reviewer": "string",
-  "score": "number",
+  "item": "ID",
+  "user": "ID",
+  "rating": "number",
   "comment": "string"
 }
 ```
@@ -527,7 +800,7 @@ Here is the API documentation for the provided Concept Specifications.
 **Success Response Body (Action):**
 ```json
 {
-  "record": "string"
+  "reviewId": "ID"
 }
 ```
 
@@ -539,21 +812,25 @@ Here is the API documentation for the provided Concept Specifications.
 ```
 ---
 
-### POST /api/ReviewRecords/delete
+### POST /api/ReviewRecords/updateReview
 
-**Description:** Deletes a specific review record for an application by a reviewer.
+**Description:** Updates the rating and/or comment of an existing review.
 
 **Requirements:**
-- a Record for the given application and reviewer exists
+- Review with `reviewId` exists and belongs to `user` for `item`.
+- If `newRating` is provided, it must be between 1 and 5.
 
 **Effects:**
-- deletes the Record for the given application and reviewer
+- Updates the `rating` and/or `comment` of the review `reviewId`; updates `r.timestamp` to current time.
 
 **Request Body:**
 ```json
 {
-  "application": "string",
-  "reviewer": "string"
+  "reviewId": "ID",
+  "item": "ID",
+  "user": "ID",
+  "newRating": "number",
+  "newComment": "string"
 }
 ```
 
@@ -570,21 +847,52 @@ Here is the API documentation for the provided Concept Specifications.
 ```
 ---
 
-### POST /api/ReviewRecords/_get
+### POST /api/ReviewRecords/deleteReview
 
-**Description:** Retrieves the score and comment of a specific review record.
+**Description:** Deletes a specific review.
 
 **Requirements:**
-- a Record for the given application and reviewer exists
+- Review with `reviewId` exists and belongs to `user` for `item`.
 
 **Effects:**
-- returns the score and comment of the Record for the given application and reviewer
+- Deletes the review `reviewId`.
 
 **Request Body:**
 ```json
 {
-  "application": "string",
-  "reviewer": "string"
+  "reviewId": "ID",
+  "item": "ID",
+  "user": "ID"
+}
+```
+
+**Success Response Body (Action):**
+```json
+{}
+```
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
+```
+---
+
+### POST /api/ReviewRecords/_getReviewsForItem
+
+**Description:** Retrieves all reviews for a given item.
+
+**Requirements:**
+- `item` exists (conceptually).
+
+**Effects:**
+- Returns a set of reviews for `item`, each with its `reviewId`, `user`, `rating`, `comment`, and `timestamp`.
+
+**Request Body:**
+```json
+{
+  "item": "ID"
 }
 ```
 
@@ -592,8 +900,11 @@ Here is the API documentation for the provided Concept Specifications.
 ```json
 [
   {
-    "score": "number",
-    "comment": "string"
+    "reviewId": "ID",
+    "user": "ID",
+    "rating": "number",
+    "comment": "string",
+    "timestamp": "number"
   }
 ]
 ```
@@ -606,20 +917,20 @@ Here is the API documentation for the provided Concept Specifications.
 ```
 ---
 
-### POST /api/ReviewRecords/_listForApplication
+### POST /api/ReviewRecords/_getReviewsByUser
 
-**Description:** Lists all review records for a given application.
+**Description:** Retrieves all reviews submitted by a given user.
 
 **Requirements:**
-- true
+- `user` exists (conceptually).
 
 **Effects:**
-- returns the set of all Records `r` such that `r`'s application is `application`, each with its record, reviewer, score and comment
+- Returns a set of reviews by `user`, each with its `reviewId`, `item`, `rating`, `comment`, and `timestamp`.
 
 **Request Body:**
 ```json
 {
-  "application": "string"
+  "user": "ID"
 }
 ```
 
@@ -627,10 +938,11 @@ Here is the API documentation for the provided Concept Specifications.
 ```json
 [
   {
-    "record": "string",
-    "reviewer": "string",
-    "score": "number",
-    "comment": "string"
+    "reviewId": "ID",
+    "item": "ID",
+    "rating": "number",
+    "comment": "string",
+    "timestamp": "number"
   }
 ]
 ```
@@ -643,20 +955,20 @@ Here is the API documentation for the provided Concept Specifications.
 ```
 ---
 
-### POST /api/ReviewRecords/_listForReviewer
+### POST /api/ReviewRecords/_getAverageRatingForItem
 
-**Description:** Lists all review records made by a specific reviewer.
+**Description:** Calculates the average rating for a given item.
 
 **Requirements:**
-- true
+- `item` exists (conceptually).
 
 **Effects:**
-- returns the set of all Records `r` such that `r`'s reviewer is `reviewer`, each with its record, application, score and comment
+- Returns the average rating for `item`.
 
 **Request Body:**
 ```json
 {
-  "reviewer": "string"
+  "item": "ID"
 }
 ```
 
@@ -664,10 +976,7 @@ Here is the API documentation for the provided Concept Specifications.
 ```json
 [
   {
-    "record": "string",
-    "application": "string",
-    "score": "number",
-    "comment": "string"
+    "averageRating": "number"
   }
 ]
 ```

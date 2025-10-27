@@ -24,6 +24,35 @@ async function main() {
   const [db] = await getDb();
   const app = new Hono();
 
+  // ✅ Fixed CORS middleware
+  app.use("*", async (c, next) => {
+    if (c.req.method === "OPTIONS") {
+      return new Response(null, {
+        status: 204,
+        headers: {
+          "Access-Control-Allow-Origin": "http://localhost:3000",
+          "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type, Authorization",
+          "Access-Control-Allow-Credentials": "true",
+        },
+      });
+    }
+
+    await next();
+
+    // Set CORS headers on the response after it's processed
+    c.res.headers.set("Access-Control-Allow-Origin", "http://localhost:3000");
+    c.res.headers.set(
+      "Access-Control-Allow-Methods",
+      "GET,POST,PUT,DELETE,OPTIONS",
+    );
+    c.res.headers.set(
+      "Access-Control-Allow-Headers",
+      "Content-Type, Authorization",
+    );
+    c.res.headers.set("Access-Control-Allow-Credentials", "true");
+  });
+
   app.get("/", (c) => c.text("Concept Server is running."));
 
   // --- Dynamic Concept Loading and Routing ---

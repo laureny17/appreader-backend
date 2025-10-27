@@ -36,6 +36,8 @@ interface RubricDimension {
  * @property requiredReadsPerApp: number - Number of required reads per application.
  * @property rubric: RubricDimension[] - An array of rubric dimensions for scoring.
  * @property eligibilityCriteria: string[] - Criteria for event eligibility.
+ * @property questions: string[] - Questions that applications must answer.
+ * @property endDate: Date - when reading ends
  */
 interface EventDocument {
   _id: Event;
@@ -44,6 +46,8 @@ interface EventDocument {
   requiredReadsPerApp: number;
   rubric: RubricDimension[];
   eligibilityCriteria: string[];
+  questions: string[];
+  endDate: Date; // when reading ends
 }
 
 /**
@@ -86,11 +90,11 @@ export default class EventDirectoryConcept {
   }
 
   /**
-   * Helper method to check if a user is an admin.
+   * Helper method to check if a user is an admin. (private)
    * @param user The ID of the user to check.
    * @returns True if the user is an admin, false otherwise.
    */
-  private async _isAdmin(user: User): Promise<boolean> {
+  private async _isAdminInternal(user: User): Promise<boolean> {
     const admin = await this.admins.findOne({ _id: user });
     return !!admin;
   }
@@ -107,20 +111,28 @@ export default class EventDirectoryConcept {
       name,
       requiredReadsPerApp,
       rubric,
+      questions,
+      endDate,
     }: {
       caller: User;
       name: string;
       requiredReadsPerApp: number;
       rubric: RubricDimension[];
+      questions: string[];
+      endDate: Date;
     },
   ): Promise<{ event: Event } | { error: string }> {
-    if (!await this._isAdmin(caller)) {
+    if (!await this._isAdminInternal(caller)) {
       return { error: "Only admins can create events." };
     }
 
     const existingEvent = await this.events.findOne({ name });
     if (existingEvent) {
       return { error: `An event with the name '${name}' already exists.` };
+    }
+
+    if (!endDate) {
+      return { error: "endDate is required." };
     }
 
     const newEventId: Event = freshID();
@@ -131,6 +143,8 @@ export default class EventDirectoryConcept {
       requiredReadsPerApp,
       rubric,
       eligibilityCriteria: [], // Initialize as empty array
+      questions,
+      endDate,
     };
 
     await this.events.insertOne(newEvent);
@@ -146,7 +160,7 @@ export default class EventDirectoryConcept {
   async activateEvent(
     { caller, name }: { caller: User; name: string },
   ): Promise<Empty | { error: string }> {
-    if (!await this._isAdmin(caller)) {
+    if (!await this._isAdminInternal(caller)) {
       return { error: "Only admins can activate events." };
     }
 
@@ -171,7 +185,7 @@ export default class EventDirectoryConcept {
   async inactivateEvent(
     { caller, name }: { caller: User; name: string },
   ): Promise<Empty | { error: string }> {
-    if (!await this._isAdmin(caller)) {
+    if (!await this._isAdminInternal(caller)) {
       return { error: "Only admins can inactivate events." };
     }
 
@@ -202,15 +216,19 @@ export default class EventDirectoryConcept {
       requiredReadsPerApp,
       rubric,
       eligibilityCriteria,
+      questions,
+      endDate,
     }: {
       caller: User;
       event: Event;
       requiredReadsPerApp?: number;
       rubric?: RubricDimension[];
       eligibilityCriteria?: string[];
+      questions?: string[];
+      endDate?: Date;
     },
   ): Promise<Empty | { error: string }> {
-    if (!await this._isAdmin(caller)) {
+    if (!await this._isAdminInternal(caller)) {
       return { error: "Only admins can update event configurations." };
     }
 
@@ -228,6 +246,12 @@ export default class EventDirectoryConcept {
     }
     if (eligibilityCriteria !== undefined) {
       updateFields.eligibilityCriteria = eligibilityCriteria;
+    }
+    if (questions !== undefined) {
+      updateFields.questions = questions;
+    }
+    if (endDate !== undefined) {
+      updateFields.endDate = endDate;
     }
 
     if (Object.keys(updateFields).length === 0) {
@@ -251,7 +275,7 @@ export default class EventDirectoryConcept {
       user: User;
     },
   ): Promise<Empty | { error: string }> {
-    if (!await this._isAdmin(caller)) {
+    if (!await this._isAdminInternal(caller)) {
       return { error: "Only admins can add readers." };
     }
 
@@ -302,7 +326,7 @@ export default class EventDirectoryConcept {
       user: User;
     },
   ): Promise<Empty | { error: string }> {
-    if (!await this._isAdmin(caller)) {
+    if (!await this._isAdminInternal(caller)) {
       return { error: "Only admins can remove readers." };
     }
 
@@ -338,10 +362,10 @@ export default class EventDirectoryConcept {
   async addAdmin(
     { caller, user }: { caller: User; user: User },
   ): Promise<Empty | { error: string }> {
-    if (!await this._isAdmin(caller)) {
+    if (!await this._isAdminInternal(caller)) {
       return { error: "Only existing admins can add new admins." };
     }
-    if (await this._isAdmin(user)) {
+    if (await this._isAdminInternal(user)) {
       return { error: `User '${user}' is already an admin.` };
     }
 
@@ -358,10 +382,10 @@ export default class EventDirectoryConcept {
   async removeAdmin(
     { caller, user }: { caller: User; user: User },
   ): Promise<Empty | { error: string }> {
-    if (!await this._isAdmin(caller)) {
+    if (!await this._isAdminInternal(caller)) {
       return { error: "Only admins can remove other admins." };
     }
-    if (!await this._isAdmin(user)) {
+    if (!await this._isAdminInternal(user)) {
       return { error: `User '${user}' is not an admin.` };
     }
     if (caller === user) {
@@ -384,7 +408,7 @@ export default class EventDirectoryConcept {
    * purpose: Retrieves an event by its name.
    * effects: Returns the event document if found.
    */
-  async _getEventByName(
+  _getEventByName(
     { name }: { name: string },
   ): Promise<EventDocument | null> {
     return this.events.findOne({ name });
@@ -395,7 +419,7 @@ export default class EventDirectoryConcept {
    * purpose: Retrieves an event by its ID.
    * effects: Returns the event document if found.
    */
-  async _getEventById(
+  _getEventById(
     { event: eventId }: { event: Event },
   ): Promise<EventDocument | null> {
     return this.events.findOne({ _id: eventId });
@@ -422,5 +446,145 @@ export default class EventDirectoryConcept {
     { event: eventId, user }: { event: Event; user: User },
   ): Promise<MembershipDocument | null> {
     return this.memberships.findOne({ event: eventId, user });
+  }
+
+  /**
+   * Query: _getVerifiedEventsForUser
+   * purpose: Returns all events where the user is a verified reader.
+   * effects: Returns an array of event summaries.
+   */
+  async _getVerifiedEventsForUser(
+    { user }: { user: User },
+  ): Promise<{ event: Event; name: string }[]> {
+    // Find all memberships where user is verified
+    const memberships = await this.memberships.find({ user, verified: true })
+      .toArray();
+
+    if (memberships.length === 0) return [];
+
+    // Extract event IDs
+    const eventIds = memberships.map((m) => m.event);
+
+    // Fetch event names
+    const events = await this.events.find({ _id: { $in: eventIds } }).toArray();
+
+    // Return array of simplified objects
+    return events.map((e) => ({ event: e._id, name: e.name }));
+  }
+
+  /**
+   * Query: _getPendingReadersForEvent
+   * purpose: Returns all unverified members for a given event.
+   */
+  async _getPendingReadersForEvent(
+    { event: eventId }: { event: Event },
+  ): Promise<{ user: User }[]> {
+    const pending = await this.memberships.find({
+      event: eventId,
+      verified: false,
+    }).toArray();
+    return pending.map((m) => ({ user: m.user }));
+  }
+
+  /**
+   * Query: _isAdmin (public version for API)
+   * purpose: Checks if a user is an administrator.
+   * effects: Returns true if the user is an admin, false otherwise.
+   */
+  async _isAdmin({ user }: { user: User }): Promise<{ isAdmin: boolean }> {
+    const isAdmin = await this._isAdminInternal(user);
+    return { isAdmin };
+  }
+
+  /**
+   * Query: _getQuestionsForEvent
+   * purpose: Retrieves the questions for a specific event.
+   * effects: Returns the questions array for the event.
+   */
+  async _getQuestionsForEvent(
+    { event: eventId }: { event: Event },
+  ): Promise<{ questions: string[] } | { error: string }> {
+    const event = await this.events.findOne({ _id: eventId });
+    if (!event) {
+      return { error: `Event with ID '${eventId}' not found.` };
+    }
+    return { questions: event.questions };
+  }
+
+  /**
+   * Query: getAllEvents
+   * purpose: Retrieves all events in the system (admin only).
+   * effects: Returns all events with their full details.
+   */
+  async getAllEvents({ caller }: { caller: User }): Promise<EventDocument[] | { error: string }> {
+    if (!await this._isAdminInternal(caller)) {
+      return { error: "Only admins can retrieve all events." };
+    }
+
+    const events = await this.events.find({}).toArray();
+    return events;
+  }
+
+  /**
+   * Query: _getVerifiedReadersForEvent
+   * purpose: Returns all verified readers for a specific event with their names.
+   * effects: Returns an array of verified members with their user IDs and names.
+   */
+  async _getVerifiedReadersForEvent(
+    { event: eventId }: { event: Event },
+  ): Promise<Array<{ user: User; name: string }> | { error: string }> {
+    const event = await this.events.findOne({ _id: eventId });
+    if (!event) {
+      return { error: `Event with ID '${eventId}' not found.` };
+    }
+
+    const verifiedMemberships = await this.memberships.find({
+      event: eventId,
+      verified: true,
+    }).toArray();
+
+    // Look up user names from AuthAccounts
+    const result: Array<{ user: User; name: string }> = [];
+    for (const membership of verifiedMemberships) {
+      const account = await this.db.collection("AuthAccounts.accounts")
+        .findOne({ _id: membership.user });
+      const name = account?.name || "Unknown User";
+      result.push({ user: membership.user, name });
+    }
+
+    return result;
+  }
+
+  /**
+   * Query: _getAllMembersForEvent
+   * purpose: Returns all members (both verified and unverified) for a specific event with their names.
+   * effects: Returns an array of all members with their user IDs, names, and verification status.
+   */
+  async _getAllMembersForEvent(
+    { event: eventId }: { event: Event },
+  ): Promise<Array<{ user: User; name: string; verified: boolean }> | { error: string }> {
+    const event = await this.events.findOne({ _id: eventId });
+    if (!event) {
+      return { error: `Event with ID '${eventId}' not found.` };
+    }
+
+    const allMemberships = await this.memberships.find({
+      event: eventId,
+    }).toArray();
+
+    // Look up user names from AuthAccounts
+    const result: Array<{ user: User; name: string; verified: boolean }> = [];
+    for (const membership of allMemberships) {
+      const account = await this.db.collection("AuthAccounts.accounts")
+        .findOne({ _id: membership.user });
+      const name = account?.name || "Unknown User";
+      result.push({
+        user: membership.user,
+        name,
+        verified: membership.verified,
+      });
+    }
+
+    return result;
   }
 }

@@ -27,6 +27,8 @@ interface EventDocument {
     scaleMax: number;
   }[];
   eligibilityCriteria: string[];
+  questions: string[];
+  endDate: Date;
 }
 
 interface MembershipDocument {
@@ -67,15 +69,29 @@ Deno.test("EventDirectoryConcept: principle fulfilment and edge cases", async ()
     },
   ];
 
+  const sampleQuestions = [
+    "What is your project idea?",
+    "What technologies will you use?",
+    "What problem does your project solve?",
+  ];
+
   await db.collection("EventDirectory.events").deleteMany({});
   await db.collection("EventDirectory.memberships").deleteMany({});
   await db.collection("EventDirectory.admins").deleteMany({});
+  await db.collection("AuthAccounts.accounts").deleteMany({});
+
+  // Create mock AuthAccounts entries for names
+  await db.collection("AuthAccounts.accounts").insertMany([
+    { _id: adminUser as any, email: "admin@example.com", name: "Admin User", passwordHash: "hash" },
+    { _id: readerUser as any, email: "reader@example.com", name: "Reader User", passwordHash: "hash" },
+  ]);
 
   await db.collection("EventDirectory.admins").insertOne({
     _id: adminUser as any,
   });
+  const adminCheck = await concept["_isAdmin"]({ user: adminUser });
   assert(
-    await concept["_isAdmin"](adminUser),
+    adminCheck.isAdmin,
     "admin should exist after setup",
   );
 
@@ -88,6 +104,8 @@ Deno.test("EventDirectoryConcept: principle fulfilment and edge cases", async ()
     name: eventName,
     requiredReadsPerApp: requiredReads,
     rubric: sampleRubric,
+    questions: sampleQuestions,
+    endDate: new Date("2024-12-31"),
   });
   assert(
     "event" in createResult,
@@ -157,6 +175,21 @@ Deno.test("EventDirectoryConcept: principle fulfilment and edge cases", async ()
     .findOne({ _id: eventId });
   assertEquals(fetchedEvent?.requiredReadsPerApp, updatedRequiredReads);
 
+  // Test _getVerifiedReadersForEvent (before removing reader)
+  const verifiedReadersResult = await concept._getVerifiedReadersForEvent({ event: eventId });
+  assert(Array.isArray(verifiedReadersResult), "Should return array");
+  assertEquals(verifiedReadersResult.length, 1, "Should have 1 verified reader");
+  assertEquals(verifiedReadersResult[0].user, readerUser);
+  assertEquals(verifiedReadersResult[0].name, "Reader User");
+
+  // Test _getAllMembersForEvent (before removing reader)
+  const allMembersResult = await concept._getAllMembersForEvent({ event: eventId });
+  assert(Array.isArray(allMembersResult), "Should return array");
+  assertEquals(allMembersResult.length, 1, "Should have 1 member");
+  assertEquals(allMembersResult[0].user, readerUser);
+  assertEquals(allMembersResult[0].verified, true);
+  assertEquals(allMembersResult[0].name, "Reader User");
+
   // remove reader
   await concept.removeReader({
     caller: adminUser,
@@ -170,10 +203,56 @@ Deno.test("EventDirectoryConcept: principle fulfilment and edge cases", async ()
 
   // add + remove another admin
   await concept.addAdmin({ caller: adminUser, user: anotherAdminUser });
-  assert(await concept["_isAdmin"](anotherAdminUser));
+  const adminCheck2 = await concept["_isAdmin"]({ user: anotherAdminUser });
+  assert(adminCheck2.isAdmin);
 
   await concept.removeAdmin({ caller: adminUser, user: anotherAdminUser });
-  assert(!(await concept["_isAdmin"](anotherAdminUser)));
+  const adminCheck3 = await concept["_isAdmin"]({ user: anotherAdminUser });
+  assert(!adminCheck3.isAdmin);
+
+  // Test questions functionality
+  // Test _getQuestionsForEvent
+  const questionsResult = await concept._getQuestionsForEvent({ event: eventId });
+  assert("questions" in questionsResult, "Should return questions");
+  assertEquals(questionsResult.questions, sampleQuestions);
+
+  // Test updating questions
+  const updatedQuestions = [
+    "What is your project idea?",
+    "What technologies will you use?",
+    "What problem does your project solve?",
+    "What is your team's experience?",
+  ];
+  await concept.updateEventConfig({
+    caller: adminUser,
+    event: eventId,
+    questions: updatedQuestions,
+  });
+
+  const updatedQuestionsResult = await concept._getQuestionsForEvent({ event: eventId });
+  assert("questions" in updatedQuestionsResult, "Should return questions");
+  assertEquals(updatedQuestionsResult.questions, updatedQuestions);
+
+  // Test questions in event document
+  fetchedEvent = await db.collection<EventDocument>("EventDirectory.events")
+    .findOne({ _id: eventId });
+  assertEquals(fetchedEvent?.questions, updatedQuestions);
+
+  // Test getAllEvents
+  const allEventsResult = await concept.getAllEvents({ caller: adminUser });
+  assert(Array.isArray(allEventsResult), "Should return array of events");
+  assertEquals(allEventsResult.length, 1, "Should have 1 event");
+  assertEquals(allEventsResult[0]._id, eventId);
+
+  // Test getAllEvents requires admin
+  const nonAdminResult = await concept.getAllEvents({ caller: normalUser });
+  assert("error" in nonAdminResult, "Non-admin should get error");
+  assertEquals(nonAdminResult.error, "Only admins can retrieve all events.");
+
+  // Test error case for non-existent event
+  const badEventId = createId("event:fake");
+  const errorResult = await concept._getVerifiedReadersForEvent({ event: badEventId });
+  assert("error" in errorResult, "Should return error for non-existent event");
 
   // ----- teardown -----
   await client.close();

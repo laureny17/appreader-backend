@@ -435,6 +435,35 @@ Deno.test("ApplicationStorageConcept: fulfills principle - adds application, gen
     },
   );
 
+  await t.step(
+    "_getApplicationsByEvent returns all applications for an event",
+    async () => {
+      // Add another application for the same event
+      const application2Result = await applicationStorage.addApplication({
+        adder,
+        event: testEventId,
+        applicantID: "applicant:john-doe",
+        applicantYear: "2025",
+        answers: ["Answer 1", "Answer 2"],
+      });
+
+      assert("application" in application2Result, "Should return application");
+      const application2Id = application2Result.application;
+
+      // Get all applications for the event
+      const applications = await applicationStorage._getApplicationsByEvent({
+        event: testEventId,
+      });
+
+      assertEquals(applications.length, 2, "Should have 2 applications");
+
+      // Verify the applications exist
+      const applicationIds = applications.map((app) => app._id);
+      assert(applicationIds.includes(createdApplicationId), "Should include first application");
+      assert(applicationIds.includes(application2Id), "Should include second application");
+    },
+  );
+
   // Cleanup
   await client.close();
 });

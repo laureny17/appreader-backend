@@ -56,6 +56,9 @@ export default class AuthAccountsConcept {
     email: string;
     password: string;
   }): Promise<{ user: User } | { error: string }> {
+    if (!name || !email || !password) {
+      return { error: "Missing required fields." };
+    }
     // Check if an account with the given email already exists
     const existingAccount = await this.accounts.findOne({ email });
     if (existingAccount) {
@@ -130,5 +133,67 @@ export default class AuthAccountsConcept {
    */
   async _getAccountByEmail(email: string): Promise<Account | null> {
     return await this.accounts.findOne({ email });
+  }
+
+  /**
+   * @query _getNameByUserId
+   * @description Retrieves the name for a given user ID (without sensitive data).
+   * @param {User} userId - The ID of the user.
+   * @returns {string | null} The name of the user if found, otherwise null.
+   */
+  async _getNameByUserId(userId: User): Promise<string | null> {
+    const account = await this.accounts.findOne({ _id: userId });
+    return account ? account.name : null;
+  }
+
+  /**
+   * @query _getAccountByIdSafe
+   * @description Retrieves account details without password hash for a given user ID.
+   * @param {User} userId - The ID of the user.
+   * @returns {{name: string, email: string} | null} The account details without password hash if found, otherwise null.
+   */
+  async _getAccountByIdSafe(userId: User): Promise<{name: string; email: string} | null> {
+    const account = await this.accounts.findOne({ _id: userId });
+    if (!account) return null;
+    return {
+      name: account.name,
+      email: account.email,
+    };
+  }
+
+  /**
+   * @query _getAllUsers
+   * @description Retrieves all users in the system (for admin use).
+   * @param {User} caller - The ID of the user requesting the list.
+   * @returns {Array<{_id: User, name: string, email: string}> | {error: string}} All users without password hashes, or an error if not an admin.
+   */
+  async _getAllUsers(params: { caller: User }): Promise<Array<{_id: User; name: string; email: string}> | { error: string }> {
+    const caller = params.caller;
+
+    // Debug logging first
+    console.log(`[AuthAccounts _getAllUsers] Checking admin for caller: ${caller}`);
+    console.log(`[AuthAccounts _getAllUsers] Caller type:`, typeof caller);
+
+    // Check if caller is an admin by querying EventDirectory.admins
+    const allAdmins = await this.db.collection("EventDirectory.admins").find({}).toArray();
+    console.log(`[AuthAccounts _getAllUsers] All admins in collection:`, JSON.stringify(allAdmins));
+    console.log(`[AuthAccounts _getAllUsers] Looking for: ${caller}`);
+
+    const adminDoc = await this.db.collection("EventDirectory.admins").findOne({ _id: caller });
+    console.log(`[AuthAccounts _getAllUsers] Admin doc found:`, adminDoc);
+
+    if (!adminDoc) {
+      return { error: "Only admins can retrieve all users." };
+    }
+
+    // Get all accounts
+    const allAccounts = await this.accounts.find({}).toArray();
+
+    // Return only the safe fields
+    return allAccounts.map((account) => ({
+      _id: account._id,
+      name: account.name,
+      email: account.email,
+    }));
   }
 }
