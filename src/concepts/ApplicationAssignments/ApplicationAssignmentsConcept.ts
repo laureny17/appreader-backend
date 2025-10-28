@@ -39,6 +39,31 @@ interface AppStatus {
 }
 
 /**
+ * Interface representing an ApplicationFlag.
+ * Stores flags on applications without requiring a full review.
+ */
+interface ApplicationFlag {
+  _id: ID;
+  user: User;
+  application: Application;
+  event: Event;
+  timestamp: DateTime;
+  reason?: string;
+}
+
+/**
+ * Interface representing a Skip record.
+ * Tracks when users skip applications.
+ */
+interface SkipRecord {
+  _id: ID;
+  user: User;
+  application: Application;
+  event: Event;
+  timestamp: DateTime;
+}
+
+/**
  * Result type for the getNextAssignment action.
  * Can return an assignment object on success or an error message on failure.
  */
@@ -77,9 +102,21 @@ export default class ApplicationAssignmentsConcept {
    */
   private appStatus: Collection<AppStatus>;
 
+  /**
+   * Stores flags on applications without requiring a full review.
+   */
+  private applicationFlags: Collection<ApplicationFlag>;
+
+  /**
+   * Stores skip records to track when users skip applications.
+   */
+  private skipRecords: Collection<SkipRecord>;
+
   constructor(private readonly db: Db) {
     this.currentAssignments = this.db.collection(PREFIX + "currentAssignments");
     this.appStatus = this.db.collection(PREFIX + "appStatus");
+    this.applicationFlags = this.db.collection(PREFIX + "applicationFlags");
+    this.skipRecords = this.db.collection(PREFIX + "skipRecords");
   }
 
   /**
@@ -240,16 +277,64 @@ export default class ApplicationAssignmentsConcept {
       };
     }
 
-    // @effects: Add user to the application's readers set for the associated AppStatus
-    await this.appStatus.updateOne(
-      { application: assignment.application, event: assignment.event },
-      { $addToSet: { readers: user } }, // $addToSet ensures the user is added only once, maintaining set semantics
-    );
+    try {
+      // Handle existing review/flag records before creating skip record
+      const ReviewRecordsConcept = (await import("../ReviewRecords/ReviewRecordsConcept.ts")).default;
+      const reviewRecords = new ReviewRecordsConcept(this.db);
 
-    // @effects: Remove the CurrentAssignment
-    await this.currentAssignments.deleteOne({ _id: assignment._id });
+      // Check if user has an existing review for this application
+      const existingReview = await reviewRecords.reviews.findOne({
+        author: user,
+        application: assignment.application,
+      });
 
-    return {};
+      if (existingReview) {
+        // Delete any red flags associated with this review
+        await reviewRecords.redFlags.deleteMany({
+          author: user,
+          review: existingReview._id,
+        });
+
+        // Delete the review record
+        await reviewRecords.reviews.deleteOne({
+          _id: existingReview._id,
+        });
+
+        // Delete any scores associated with this review
+        await reviewRecords.scores.deleteMany({
+          review: existingReview._id,
+        });
+
+        // Delete any comments associated with this review
+        await reviewRecords.comments.deleteMany({
+          review: existingReview._id,
+        });
+      }
+
+      // @effects: Add user to the application's readers set for the associated AppStatus
+      await this.appStatus.updateOne(
+        { application: assignment.application, event: assignment.event },
+        { $addToSet: { readers: user } }, // $addToSet ensures the user is added only once, maintaining set semantics
+      );
+
+      // Create a skip record
+      const skipId = freshID();
+      await this.skipRecords.insertOne({
+        _id: skipId,
+        user: user,
+        application: assignment.application,
+        event: assignment.event,
+        timestamp: new Date(),
+      });
+
+      // @effects: Remove the CurrentAssignment
+      await this.currentAssignments.deleteOne({ _id: assignment._id });
+
+      return {};
+    } catch (error) {
+      console.error("Error in skipAssignment:", error);
+      return { error: "Failed to skip assignment" };
+    }
   }
 
   /**
@@ -260,8 +345,9 @@ export default class ApplicationAssignmentsConcept {
    * and removes the `CurrentAssignment` from the user.
    *
    * @param user The ID of the user submitting the assignment.
-   * @param assignment The `CurrentAssignment` object being submitted.
+   * @param assignment The `CurrentAssignments` object being submitted.
    * @param endTime The `DateTime` when the assignment was completed.
+   * @param activeTime Optional time in seconds that the user was actively reviewing.
    * @returns A `SubmitAndIncrementResult` object, containing the `application` ID on success,
    *          or an `error` message if the provided `assignment` is not active or does not belong to the `user`.
    *
@@ -269,13 +355,15 @@ export default class ApplicationAssignmentsConcept {
    * @effects: Increments the `readsCompleted` count for the application's `AppStatus`.
    *           Adds the `user` to the `readers` set of the `AppStatus` for the associated application and event.
    *           Removes the `CurrentAssignment` record.
+   *           Creates a review record with activeTime if provided.
    *           Returns the `application` ID associated with the submitted assignment.
    */
   async submitAndIncrement(
-    { user, assignment, endTime }: {
+    { user, assignment, endTime, activeTime }: {
       user: User;
       assignment: CurrentAssignments;
       endTime: DateTime;
+      activeTime?: number; // Time in seconds that the user was actively reviewing
     },
   ): Promise<SubmitAndIncrementResult> {
     // @requires: user is currently assigned the provided assignment
@@ -291,6 +379,21 @@ export default class ApplicationAssignmentsConcept {
         error:
           "Provided assignment does not exist or does not belong to the user.",
       };
+    }
+
+    // @effects: Create a review record with activeTime if provided
+    if (activeTime !== undefined) {
+      const reviewRecords = new (await import("../ReviewRecords/ReviewRecordsConcept.ts")).default(this.db);
+      const reviewResult = await reviewRecords.submitReview({
+        author: user,
+        application: assignment.application,
+        currentTime: endTime,
+        activeTime: activeTime,
+      });
+
+      if ("error" in reviewResult) {
+        return { error: `Failed to create review: ${reviewResult.error}` };
+      }
     }
 
     // @effects: Increment the number of completed reads for the application,
@@ -376,5 +479,182 @@ export default class ApplicationAssignmentsConcept {
     }
 
     return { assignment: existingAssignment };
+  }
+
+  /**
+   * _getSkipStatsForEvent (event: Event)
+   * purpose: Get skip statistics for all users who were assigned applications in an event
+   * effects: Returns skip counts per user by counting assignments that were skipped
+   */
+  async _getSkipStatsForEvent(
+    { event }: { event: Event },
+  ): Promise<Array<{
+    userId: string;
+    skipCount: number;
+  }>> {
+    // Get all skip records for this event
+    const skips = await this.skipRecords.find({ event }).toArray();
+
+    // Group by user to count skips
+    const skipCountByUser = new Map<string, number>();
+
+    for (const skip of skips) {
+      const userId = skip.user.toString();
+      skipCountByUser.set(userId, (skipCountByUser.get(userId) || 0) + 1);
+    }
+
+    return Array.from(skipCountByUser.entries()).map(([userId, skipCount]) => ({
+      userId,
+      skipCount,
+    }));
+  }
+
+  /**
+   * flagAndSkip
+   *
+   * Flags an application and skips to the next one by creating a review record with a red flag.
+   * This ensures flagged applications appear in history and can be properly managed.
+   *
+   * @param user The ID of the user flagging the application.
+   * @param assignment The CurrentAssignment object being flagged.
+   * @param reason Optional reason for the flag.
+   * @returns An empty object on success, or an error message.
+   *
+   * @requires: The `user` is currently assigned the provided `assignment`.
+   * @effects: Creates a review record with a red flag.
+   *           Creates a skip record for proper skip counting.
+   *           Removes the `CurrentAssignment` record.
+   *           Does NOT add user to readers set (allows re-assignment if unflagged).
+   */
+  async flagAndSkip(
+    {
+      user,
+      assignment,
+      reason,
+    }: {
+      user: User;
+      assignment: CurrentAssignments;
+      reason?: string;
+    },
+  ): Promise<Empty | { error: string }> {
+    // Verify that the assignment exists and belongs to the specified user.
+    const foundAssignment = await this.currentAssignments.findOne({
+      _id: assignment._id,
+      user: user,
+      application: assignment.application,
+      event: assignment.event,
+    });
+
+    if (!foundAssignment) {
+      return {
+        error:
+          "Provided assignment does not exist or does not belong to the user.",
+      };
+    }
+
+    try {
+      // Create a review record first (so it appears in history)
+      const ReviewRecordsConcept = (await import("../ReviewRecords/ReviewRecordsConcept.ts")).default;
+      const reviewRecords = new ReviewRecordsConcept(this.db);
+
+      const reviewResult = await reviewRecords.submitReview({
+        author: user,
+        application: assignment.application,
+        currentTime: new Date(), // Use actual current time when flagging
+        activeTime: 0, // No time spent since it's just a flag
+      });
+
+      if ("error" in reviewResult) {
+        return { error: `Failed to create review record: ${reviewResult.error}` };
+      }
+
+      // Add a red flag to the review
+      const flagResult = await reviewRecords.addRedFlag({
+        author: user,
+        review: reviewResult.review,
+      });
+
+      if ("error" in flagResult) {
+        return { error: `Failed to add red flag: ${flagResult.error}` };
+      }
+
+      // Do NOT create skip record (flagging should not increment skip count)
+      // Add user to readers set (prevents random re-assignment, but accessible via dropdown)
+      await this.appStatus.updateOne(
+        { application: assignment.application, event: assignment.event },
+        { $addToSet: { readers: user } },
+      );
+
+      // Remove the CurrentAssignment
+      await this.currentAssignments.deleteOne({ _id: assignment._id });
+
+      return {};
+    } catch (error) {
+      console.error("Error in flagAndSkip:", error);
+      return { error: "Failed to flag application" };
+    }
+  }
+
+  /**
+   * _getUserFlaggedApplications
+   *
+   * Retrieves all applications a user has flagged (without reviewing).
+   *
+   * @param user The ID of the user.
+   * @param event The ID of the event.
+   * @returns An array of flagged applications with their details.
+   */
+  async _getUserFlaggedApplications(
+    { user, event }: { user: User; event: Event },
+  ): Promise<Array<{
+    application: Application;
+    timestamp: string;
+    reason?: string;
+    applicationDetails: {
+      _id: string;
+      applicantID: string;
+      applicantYear: string;
+    };
+  }>> {
+    // Get all flags by this user for this event
+    const flags = await this.applicationFlags.find({ user, event })
+      .sort({ timestamp: -1 })
+      .toArray();
+
+    if (flags.length === 0) {
+      return [];
+    }
+
+    // Get application details
+    const applicationIds = flags.map((f) => f.application);
+    const applications = await this.db.collection("ApplicationStorage.applications")
+      .find({
+        _id: { $in: applicationIds as any },
+      })
+      .toArray();
+
+    // Create a map of application details
+    const appDetailsMap = new Map(applications.map((app: any) => [app._id.toString(), {
+      _id: app._id.toString(),
+      applicantID: app.applicantID,
+      applicantYear: app.applicantYear,
+    }]));
+
+    // Return flags with application details
+    return flags.map((flag) => {
+      const appDetails = appDetailsMap.get(flag.application.toString());
+      return {
+        application: flag.application,
+        timestamp: flag.timestamp instanceof Date
+          ? flag.timestamp.toISOString()
+          : new Date(flag.timestamp).toISOString(),
+        reason: flag.reason,
+        applicationDetails: appDetails || {
+          _id: flag.application.toString(),
+          applicantID: "Unknown",
+          applicantYear: "Unknown",
+        },
+      };
+    });
   }
 }

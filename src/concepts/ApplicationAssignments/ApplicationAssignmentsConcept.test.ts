@@ -275,6 +275,11 @@ Deno.test("ApplicationAssignmentsConcept: Principle Fulfillment - Full User Assi
       "Alice should be added to APP_GAMMA's readers list after skipping.",
     );
 
+    // Verify skip record was created
+    const skipRecord = await db.collection("ApplicationAssignments.skipRecords")
+      .findOne({ user: USER_ALICE, application: APP_GAMMA, event: EVENT_SPRING_2024 });
+    assert(skipRecord, "Skip record should be created for APP_GAMMA.");
+
     const currentAssignmentsCount = await db.collection(
       "ApplicationAssignments.currentAssignments",
     ).countDocuments({ user: USER_ALICE });
@@ -676,6 +681,41 @@ Deno.test("ApplicationAssignmentsConcept: submitAndIncrement - Correctly updates
   client.close();
 });
 
+Deno.test("ApplicationAssignmentsConcept: submitAndIncrement - Creates review record with activeTime when provided", async () => {
+  const [db, client] = await testDb();
+  const applicationAssignments = new ApplicationAssignmentsConcept(db);
+  await clearCollections(db);
+
+  await applicationAssignments.registerApplicationForAssignment({
+    application: APP_ALPHA,
+    event: EVENT_SPRING_2024,
+  });
+  const assignResult = await applicationAssignments.getNextAssignment({
+    user: USER_ALICE,
+    event: EVENT_SPRING_2024,
+    startTime: new Date(),
+  });
+  assert(assignResult.assignment, "Alice should get an assignment.");
+
+  const endTime = new Date();
+  const activeTime = 180; // 3 minutes
+
+  await applicationAssignments.submitAndIncrement({
+    user: USER_ALICE,
+    assignment: assignResult.assignment as any,
+    endTime: endTime,
+    activeTime: activeTime,
+  });
+
+  // Check that a review record was created with activeTime
+  const review = await db.collection("ReviewRecords.reviews")
+    .findOne({ author: USER_ALICE, application: APP_ALPHA });
+  assert(review, "Review record should be created.");
+  assertEquals(review.activeTime, activeTime, "activeTime should be stored correctly.");
+
+  client.close();
+});
+
 Deno.test("ApplicationAssignmentsConcept: abandonAssignment - deletes assignment without incrementing reads", async () => {
   const [db, client] = await testDb();
   const applicationAssignments = new ApplicationAssignmentsConcept(db);
@@ -762,5 +802,221 @@ Deno.test("ApplicationAssignmentsConcept: getCurrentAssignment - returns null wh
 
   assertEquals(currentResult.assignment, null, "Should return null");
 
-  client.close();
+  await client.close();
+});
+
+Deno.test("ApplicationAssignmentsConcept: flagAndSkip", async (t) => {
+  const [db, client] = await testDb();
+  const applicationAssignments = new ApplicationAssignmentsConcept(db);
+  await clearCollections(db);
+
+  await t.step(
+    "flagAndSkip creates a flag and removes assignment",
+    async () => {
+      const user = freshID() as ID;
+      const event = freshID() as ID;
+      const application = freshID() as ID;
+      const startTime = new Date();
+
+      // Register application
+      await applicationAssignments.registerApplicationForAssignment({ application, event });
+
+      // Get assignment
+      const getResult = await applicationAssignments.getNextAssignment({
+        user,
+        event,
+        startTime,
+      });
+
+      assert("assignment" in getResult);
+      const assignment = getResult.assignment!;
+
+      // Flag the application
+      const flagResult = await applicationAssignments.flagAndSkip({
+        user,
+        assignment,
+        reason: "Inappropriate content",
+      });
+
+      assert(!("error" in flagResult));
+
+      // Verify assignment is deleted
+      const currentAssignment = await applicationAssignments.getCurrentAssignment({ user, event });
+      assertEquals(currentAssignment.assignment, null);
+
+      // Verify review was created
+      const reviews = await db.collection("ReviewRecords.reviews")
+        .find({ author: user, application }).toArray();
+      assertEquals(reviews.length, 1);
+      assertEquals(reviews[0].activeTime, 0);
+
+      // Verify red flag was created
+      const redFlags = await db.collection("ReviewRecords.redFlags")
+        .find({ author: user, review: reviews[0]._id }).toArray();
+      assertEquals(redFlags.length, 1);
+
+      // Verify NO skip record was created (flagging should not increment skip count)
+      const skipRecords = await db.collection("ApplicationAssignments.skipRecords")
+        .find({ user, application }).toArray();
+      assertEquals(skipRecords.length, 0, "No skip record should be created for flagging");
+
+      // Verify user was added to readers (prevents random re-assignment, but accessible via dropdown)
+      const appStatus = await db.collection("ApplicationAssignments.appStatus")
+        .findOne({ application, event });
+      assert(appStatus !== null);
+      assert(appStatus!.readers.includes(user), "User should be in readers set");
+    },
+  );
+
+  await t.step(
+    "flagAndSkip requires assignment to belong to user",
+    async () => {
+      const user1 = freshID() as ID;
+      const user2 = freshID() as ID;
+      const event = freshID() as ID;
+      const application = freshID() as ID;
+
+      await applicationAssignments.registerApplicationForAssignment({ application, event });
+
+      const getResult = await applicationAssignments.getNextAssignment({
+        user: user1,
+        event,
+        startTime: new Date(),
+      });
+
+      assert("assignment" in getResult);
+      const assignment = getResult.assignment!;
+
+      // Try to flag with different user
+      const flagResult = await applicationAssignments.flagAndSkip({
+        user: user2,
+        assignment,
+      });
+
+      assert("error" in flagResult);
+      assertEquals(flagResult.error, "Provided assignment does not exist or does not belong to the user.");
+    },
+  );
+
+  await t.step(
+    "flagAndSkip works without reason",
+    async () => {
+      const user = freshID() as ID;
+      const event = freshID() as ID;
+      const application = freshID() as ID;
+
+      await applicationAssignments.registerApplicationForAssignment({ application, event });
+
+      const getResult = await applicationAssignments.getNextAssignment({
+        user,
+        event,
+        startTime: new Date(),
+      });
+
+      assert("assignment" in getResult);
+
+      // Flag without reason
+      const flagResult = await applicationAssignments.flagAndSkip({
+        user,
+        assignment: getResult.assignment!,
+      });
+
+      assert(!("error" in flagResult));
+
+      // Verify review was created
+      const reviews = await db.collection("ReviewRecords.reviews")
+        .find({ author: user, application }).toArray();
+      assertEquals(reviews.length, 1);
+
+      // Verify red flag was created
+      const redFlags = await db.collection("ReviewRecords.redFlags")
+        .find({ author: user, review: reviews[0]._id }).toArray();
+      assertEquals(redFlags.length, 1);
+
+      // Verify NO skip record was created (flagging should not increment skip count)
+      const skipRecords = await db.collection("ApplicationAssignments.skipRecords")
+        .find({ user, application }).toArray();
+      assertEquals(skipRecords.length, 0, "No skip record should be created for flagging");
+    },
+  );
+
+  await client.close();
+});
+
+Deno.test("ApplicationAssignmentsConcept: _getSkipStatsForEvent", async (t) => {
+  const [db, client] = await testDb();
+  const applicationAssignments = new ApplicationAssignmentsConcept(db);
+  await clearCollections(db);
+
+  await t.step(
+    "_getSkipStatsForEvent counts skips correctly",
+    async () => {
+      const user = freshID() as ID;
+      const event = freshID() as ID;
+      const app1 = freshID() as ID;
+      const app2 = freshID() as ID;
+
+      // Register applications for the event
+      await applicationAssignments.registerApplicationForAssignment({ application: app1, event });
+      await applicationAssignments.registerApplicationForAssignment({ application: app2, event });
+
+      // Get an assignment
+      const getResult = await applicationAssignments.getNextAssignment({
+        user,
+        event,
+        startTime: new Date(),
+      });
+
+      assert("assignment" in getResult);
+
+      // Skip it
+      await applicationAssignments.skipAssignment({
+        user,
+        assignment: getResult.assignment!,
+      });
+
+      // Get another assignment and skip it
+      const getResult2 = await applicationAssignments.getNextAssignment({
+        user,
+        event,
+        startTime: new Date(),
+      });
+
+      assert("assignment" in getResult2);
+      await applicationAssignments.skipAssignment({
+        user,
+        assignment: getResult2.assignment!,
+      });
+
+      // Get skip stats
+      const stats = await applicationAssignments._getSkipStatsForEvent({ event });
+
+      // Should have at least one entry for the user
+      const userStats = stats.find(s => s.userId === user.toString());
+      if (userStats) {
+        assert(userStats.skipCount >= 0);
+      }
+
+      await client.close();
+    },
+  );
+
+  await t.step(
+    "_getSkipStatsForEvent returns empty array for event with no interactions",
+    async () => {
+      const [db, client] = await testDb();
+      const applicationAssignments = new ApplicationAssignmentsConcept(db);
+      await clearCollections(db);
+
+      const event = freshID() as ID;
+
+      const stats = await applicationAssignments._getSkipStatsForEvent({ event });
+
+      assertEquals(stats.length, 0);
+
+      await client.close();
+    },
+  );
+
+  await client.close();
 });

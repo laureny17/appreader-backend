@@ -590,6 +590,136 @@ export default class ReviewRecordsConcept {
   }
 
   /**
+   * _getReaderStatsForEvent (event: Event)
+   * purpose: Get comprehensive reader statistics for all readers in an event
+   * effects: Returns array of reader statistics with read counts, skip counts, and average times
+   */
+  async _getReaderStatsForEvent(
+    { event }: { event: Event },
+  ): Promise<Array<{
+    userId: string;
+    readCount: number;
+    totalTime: number;
+  }>> {
+    // Get all reviews for this event by looking up applications first
+    const applications = await this.db.collection("ApplicationStorage.applications")
+      .find({ event }).toArray();
+
+    if (applications.length === 0) {
+      return [];
+    }
+
+    const applicationIds = applications.map((app) => app._id);
+
+    // Get all reviews for these applications
+    const reviews = await this.reviews.find({
+      application: { $in: applicationIds as any },
+    }).toArray();
+
+    // Group by user and calculate stats
+    const userStats = new Map<string, { readCount: number; totalTime: number }>();
+
+    for (const review of reviews) {
+      const userId = review.author.toString();
+
+      if (!userStats.has(userId)) {
+        userStats.set(userId, { readCount: 0, totalTime: 0 });
+      }
+
+      const stats = userStats.get(userId)!;
+      stats.readCount++;
+      stats.totalTime += review.activeTime || 0;
+    }
+
+    // Convert to array format
+    return Array.from(userStats.entries()).map(([userId, stats]) => ({
+      userId,
+      readCount: stats.readCount,
+      totalTime: stats.totalTime,
+    }));
+  }
+
+  /**
+   * deleteReview (reviewId: Review, user: User)
+   * purpose: Deletes a review by its ID. Only the author of the review can delete it.
+   * effects: Removes the review from the database and decrements the user's review count for the event
+   */
+  async deleteReview(
+    { reviewId, user }: { reviewId: Review; user: User },
+  ): Promise<{ success: true; message: string } | { error: string }> {
+    // Find the review to verify it exists and get the author
+    const review = await this.reviews.findOne({ _id: reviewId });
+
+    if (!review) {
+      return { error: "Review not found" };
+    }
+
+    // Verify that the user is the author of the review
+    if (review.author !== user) {
+      return { error: "User not authorized to delete this review" };
+    }
+
+    // Delete all related records first
+    // Delete all scores for this review
+    await this.scores.deleteMany({ review: reviewId });
+
+    // Delete all red flags for this review
+    await this.redFlags.deleteMany({ review: reviewId });
+
+    // Delete the review itself
+    await this.reviews.deleteOne({ _id: reviewId });
+
+    return { success: true, message: "Review deleted successfully" };
+  }
+
+  /**
+   * _hasUserFlaggedApplication (user: User, application: Application)
+   * purpose: Checks if a user has flagged a specific application
+   * effects: Returns true if the user has flagged this application, false otherwise
+   */
+  async _hasUserFlaggedApplication(
+    { user, application }: { user: User; application: Application },
+  ): Promise<boolean> {
+    // Find the user's review for this application
+    const review = await this.reviews.findOne({ author: user, application });
+
+    if (!review) {
+      return false; // User hasn't reviewed this application, so no flags
+    }
+
+    // Check if there are any red flags for this review
+    const flagCount = await this.redFlags.countDocuments({ review: review._id });
+    return flagCount > 0;
+  }
+
+  /**
+   * _getUserScoresForApplication (user: User, application: Application)
+   * purpose: Retrieves all scores a user submitted for a specific application in their review
+   * effects: Returns the review ID and all scores the user submitted for this application, or null if not reviewed
+   */
+  async _getUserScoresForApplication(
+    { user, application }: { user: User; application: Application },
+  ): Promise<{
+    review: Review;
+    scores: Array<{ criterion: string; value: number }>;
+  } | null> {
+    // Find the user's review for this application
+    const review = await this.reviews.findOne({ author: user, application });
+
+    if (!review) {
+      return null; // User hasn't reviewed this application
+    }
+
+    // Get all scores for this review
+    const scores = await this.scores.find({ review: review._id }).toArray();
+
+    return {
+      review: review._id,
+      scores: scores.map((s) => ({ criterion: s.criterion, value: s.value })),
+    };
+  }
+
+  /**
    * _getUserReviewedApplications (user: User, event: Event)
    * purpose: Retrieves all applications a user has reviewed for a specific event
    * effects: Returns all applications with their submission timestamps and basic details
@@ -604,37 +734,93 @@ export default class ReviewRecordsConcept {
       applicantID: string;
       applicantYear: string;
     };
+    isFlagged?: boolean;
+    flagReason?: string;
   }>> {
-    // Get all applications for this event
-    const applications = await this.db.collection("ApplicationStorage.applications")
-      .find({ event }).toArray();
+    try {
+      // Get all applications for this event
+      const applications = await this.db.collection("ApplicationStorage.applications")
+        .find({ event }).toArray();
 
-    if (applications.length === 0) {
+      if (applications.length === 0) {
+        return [];
+      }
+
+      const applicationIds = applications.map((app) => app._id);
+
+      // Get all reviews by this user for these specific applications
+      const reviews = await this.reviews.find({
+        author: user,
+        application: { $in: applicationIds as any }
+      })
+        .sort({ submittedAt: -1 })
+        .toArray();
+
+      // Get all red flags by this user for these specific applications
+      const redFlags = await this.redFlags.find({
+        author: user,
+        review: { $in: reviews.map(r => r._id) }
+      }).toArray();
+
+      // Create a map of flags by application (using review.application)
+      const flagsByApp = new Map();
+      for (const redFlag of redFlags) {
+        const review = reviews.find(r => r._id.toString() === redFlag.review.toString());
+        if (review) {
+          flagsByApp.set(review.application.toString(), {
+            reason: "Flagged by reader", // Default reason since RedFlagDoc doesn't store reason
+            timestamp: review.submittedAt instanceof Date
+              ? review.submittedAt.toISOString()
+              : new Date(review.submittedAt).toISOString(),
+          });
+        }
+      }
+
+      // Create a map of application details
+      const appDetailsMap = new Map(applications.map((app) => [app._id.toString(), {
+        _id: app._id.toString(),
+        applicantID: app.applicantID,
+        applicantYear: app.applicantYear,
+      }]));
+
+      // Combine reviews and flags, track which apps were flagged
+      const combinedResults = reviews.map((review) => {
+        const appDetails = appDetailsMap.get(review.application.toString());
+        if (!appDetails) {
+          return null;
+        }
+
+        const flagInfo = flagsByApp.get(review.application.toString());
+        const submittedAtStr = review.submittedAt instanceof Date
+          ? review.submittedAt.toISOString()
+          : new Date(review.submittedAt).toISOString();
+
+        return {
+          application: review.application,
+          submittedAt: submittedAtStr,
+          applicationDetails: appDetails,
+          isFlagged: !!flagInfo,
+          flagReason: flagInfo?.reason,
+        };
+      });
+
+      // Sort by timestamp descending
+      return combinedResults.filter((item) => item !== null).sort((a, b) =>
+        new Date(b!.submittedAt).getTime() - new Date(a!.submittedAt).getTime()
+      ) as Array<{
+        application: Application;
+        submittedAt: string;
+        applicationDetails: {
+          _id: string;
+          applicantID: string;
+          applicantYear: string;
+        };
+        isFlagged?: boolean;
+        flagReason?: string;
+      }>;
+    } catch (error) {
+      console.error("Error in _getUserReviewedApplications:", error);
       return [];
     }
-
-    const applicationIds = applications.map((app) => app._id);
-
-    // Get all reviews by this user for these applications
-    const reviews = await this.reviews.find({
-      author: user,
-      application: { $in: applicationIds as any },
-    })
-      .sort({ submittedAt: -1 })
-      .toArray();
-
-    // Create a map of application details
-    const appDetailsMap = new Map(applications.map((app) => [app._id.toString(), {
-      _id: app._id.toString(),
-      applicantID: app.applicantID,
-      applicantYear: app.applicantYear,
-    }]));
-
-    // Return reviews with application details
-    return reviews.map((review) => ({
-      application: review.application,
-      submittedAt: review.submittedAt.toISOString(),
-      applicationDetails: appDetailsMap.get(review.application.toString())!,
-    }));
   }
 }

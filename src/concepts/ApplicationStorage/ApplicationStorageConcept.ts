@@ -23,6 +23,17 @@ type Event = ID;
  *        an applicantID String
  *        an applicantYear String
  *        an answers set of String
+ *        flagged Boolean (default: false)
+ *        flaggedBy User (user who flagged it)
+ *        flaggedAt DateTime
+ *        flagReason String
+ *        disqualified Boolean (default: false)
+ *        disqualificationReason String
+ *        disqualifiedBy User (admin who disqualified it)
+ *        disqualifiedAt DateTime
+ *        undisqualifiedAt DateTime
+ *        undisqualifiedBy User (admin who un-disqualified it)
+ *        undisqualificationReason String
  */
 interface ApplicationDoc {
   _id: Application;
@@ -30,6 +41,17 @@ interface ApplicationDoc {
   applicantID: string;
   applicantYear: string;
   answers: string[];
+  flagged?: boolean;
+  flaggedBy?: string;
+  flaggedAt?: Date;
+  flagReason?: string;
+  disqualified?: boolean;
+  disqualificationReason?: string;
+  disqualifiedBy?: string;
+  disqualifiedAt?: Date;
+  undisqualifiedAt?: Date;
+  undisqualifiedBy?: string;
+  undisqualificationReason?: string;
 }
 
 /**
@@ -98,11 +120,36 @@ export default class ApplicationStorageConcept {
       applicantID: applicantID,
       applicantYear: applicantYear,
       answers: answers,
+      flagged: false,
+      flaggedBy: undefined,
+      flaggedAt: undefined,
+      flagReason: undefined,
+      disqualified: false,
+      disqualificationReason: undefined,
+      disqualifiedBy: undefined,
+      disqualifiedAt: undefined,
+      undisqualifiedAt: undefined,
+      undisqualifiedBy: undefined,
+      undisqualificationReason: undefined,
     };
 
     try {
       await this.applications.insertOne(newApplicationDoc);
       console.log(`Application ${newApplicationId} added for event ${event}.`);
+
+      // Register application for assignment
+      try {
+        const ApplicationAssignmentsConcept = (await import("../ApplicationAssignments/ApplicationAssignmentsConcept.ts")).default;
+        const applicationAssignments = new ApplicationAssignmentsConcept(this.db);
+        await applicationAssignments.registerApplicationForAssignment({
+          application: newApplicationId,
+          event: event,
+        });
+      } catch (assignmentErr) {
+        console.warn(`Failed to register application for assignment ${applicantID}:`, assignmentErr);
+        // Don't fail the application creation for assignment registration failures
+      }
+
       return { application: newApplicationId, event: event };
     } catch (e) {
       console.error(
@@ -320,5 +367,479 @@ ${rubric.join("\n")}
     { event }: { event: Event },
   ): Promise<ApplicationDoc[]> {
     return this.applications.find({ event }).toArray();
+  }
+
+  /**
+   * @action _bulkImportApplications (event: Event, applications: Array<{applicantID: string, applicantYear: string, answers: string[]}>, importedBy: User)
+   * @requires: event exists, importedBy is admin, applications have valid data
+   * @effects: create multiple applications and generate AI comments for each
+   */
+  async _bulkImportApplications(
+    {
+      event,
+      applications,
+      importedBy,
+    }: {
+      event: Event;
+      applications: Array<{
+        applicantID: string;
+        applicantYear: string;
+        answers: string[];
+      }>;
+      importedBy: string;
+    },
+  ): Promise<{
+    success: true;
+    importedCount: number;
+    errors: Array<{ applicantID: string; error: string }>;
+  } | { error: string }> {
+    // 1. Validate event exists
+    const eventData = await this.db.collection("EventDirectory.events").findOne({ _id: event });
+    if (!eventData) {
+      return { error: "Event not found" };
+    }
+
+    // 2. Validate importedBy user is admin
+    const adminCheck = await this.db.collection("EventDirectory.admins").findOne({ _id: importedBy });
+    if (!adminCheck) {
+      return { error: "User is not admin" };
+    }
+
+    // 3. Get event questions for validation
+    const questionsResult = await this.db.collection("EventDirectory.events").findOne({ _id: event });
+    if (!questionsResult?.questions || questionsResult.questions.length === 0) {
+      return { error: "Event has no questions configured" };
+    }
+    const expectedAnswersCount = questionsResult.questions.length;
+
+    // 4. Validate applications
+    const errors: Array<{ applicantID: string; error: string }> = [];
+    const validApplications: Array<{
+      applicantID: string;
+      applicantYear: string;
+      answers: string[];
+    }> = [];
+
+    // Check for duplicates within the import batch
+    const batchApplicantIDs = new Set<string>();
+
+    for (const app of applications) {
+      // Check required fields
+      if (!app.applicantID || app.applicantID.trim() === "") {
+        errors.push({ applicantID: app.applicantID || "unknown", error: "Missing applicantID" });
+        continue;
+      }
+
+      if (!app.applicantYear || app.applicantYear.trim() === "") {
+        errors.push({ applicantID: app.applicantID, error: "Missing applicantYear" });
+        continue;
+      }
+
+      if (!app.answers || !Array.isArray(app.answers) || app.answers.length === 0) {
+        errors.push({ applicantID: app.applicantID, error: "Missing or invalid answers" });
+        continue;
+      }
+
+      // Check answers length matches questions count
+      if (app.answers.length !== expectedAnswersCount) {
+        errors.push({
+          applicantID: app.applicantID,
+          error: `Answers count (${app.answers.length}) doesn't match questions count (${expectedAnswersCount})`
+        });
+        continue;
+      }
+
+      // Check for duplicates in batch
+      if (batchApplicantIDs.has(app.applicantID)) {
+        errors.push({ applicantID: app.applicantID, error: "Duplicate applicantID in import batch" });
+        continue;
+      }
+      batchApplicantIDs.add(app.applicantID);
+
+      // Check for existing applicantID in database
+      const existing = await this.applications.findOne({ event, applicantID: app.applicantID });
+      if (existing) {
+        errors.push({ applicantID: app.applicantID, error: "ApplicantID already exists in this event" });
+        continue;
+      }
+
+      validApplications.push(app);
+    }
+
+    // 5. If no valid applications, return success with errors
+    if (validApplications.length === 0) {
+      return {
+        success: true,
+        importedCount: 0,
+        errors,
+      };
+    }
+
+    // 6. Create applications and generate AI comments
+    let importedCount = 0;
+
+    for (const app of validApplications) {
+      try {
+        // Create the application
+        const result = await this.addApplication({
+          adder: importedBy,
+          event,
+          applicantID: app.applicantID,
+          applicantYear: app.applicantYear,
+          answers: app.answers,
+        });
+
+        if ("error" in result) {
+          errors.push({ applicantID: app.applicantID, error: result.error });
+          continue;
+        }
+
+        // Generate AI comments
+        try {
+          await this.generateAIComments({
+            application: result.application,
+            questions: questionsResult.questions,
+            rubric: questionsResult.rubric || [],
+            eligibilityCriteria: questionsResult.eligibilityCriteria || [],
+          });
+        } catch (commentErr) {
+          console.warn(`Failed to generate AI comments for ${app.applicantID}:`, commentErr);
+          // Don't fail the import for AI comment generation failures
+        }
+
+        // Register application for assignment
+        try {
+          const ApplicationAssignmentsConcept = (await import("../ApplicationAssignments/ApplicationAssignmentsConcept.ts")).default;
+          const applicationAssignments = new ApplicationAssignmentsConcept(this.db);
+          await applicationAssignments.registerApplicationForAssignment({
+            application: result.application,
+            event: event,
+          });
+        } catch (assignmentErr) {
+          console.warn(`Failed to register application for assignment ${app.applicantID}:`, assignmentErr);
+          // Don't fail the import for assignment registration failures
+        }
+
+        importedCount++;
+      } catch (err) {
+        errors.push({
+          applicantID: app.applicantID,
+          error: err instanceof Error ? err.message : "Unknown error"
+        });
+      }
+    }
+
+    return {
+      success: true,
+      importedCount,
+      errors,
+    };
+  }
+
+  /**
+   * @query _getFlaggedApplications (event: Event)
+   * @purpose: Get all flagged applications for an event (for admin dashboard)
+   * @effects: Returns all flagged applications with flagging and disqualification details
+   */
+  async _getFlaggedApplications(
+    { event }: { event: Event },
+  ): Promise<Array<{
+    _id: Application;
+    applicantID: string;
+    applicantYear: string;
+    answers: string[];
+    flaggedBy: string;
+    flaggedAt: Date;
+    flagReason: string;
+    disqualified: boolean;
+    disqualificationReason?: string;
+    disqualifiedAt?: Date;
+    disqualifiedBy?: string;
+  }> | { error: string }> {
+    // Validate event exists
+    const eventExists = await this.db.collection("EventDirectory.events").findOne({ _id: event });
+    if (!eventExists) {
+      return { error: "Event not found" };
+    }
+
+    // Get all applications for this event
+    const applications = await this.applications.find({ event }).toArray();
+    const applicationIds = applications.map(app => app._id);
+
+    // Get all reviews with red flags for applications in this event
+    const flaggedReviews = await this.db.collection("ReviewRecords.reviews").find({
+      application: { $in: applicationIds },
+    }).toArray();
+
+    // Get all red flags for these reviews
+    const reviewIds = flaggedReviews.map(review => review._id);
+    const redFlags = await this.db.collection("ReviewRecords.redFlags").find({
+      review: { $in: reviewIds },
+    }).toArray();
+
+    // Group flags by review
+    const flagsByReview = new Map<string, any[]>();
+    for (const flag of redFlags) {
+      if (!flagsByReview.has(flag.review.toString())) {
+        flagsByReview.set(flag.review.toString(), []);
+      }
+      flagsByReview.get(flag.review.toString())!.push(flag);
+    }
+
+    // Create flagged applications list
+    const flaggedApps: Array<{
+      _id: Application;
+      applicantID: string;
+      applicantYear: string;
+      answers: string[];
+      flaggedBy: string;
+      flaggedAt: Date;
+      flagReason: string;
+      disqualified: boolean;
+      disqualificationReason?: string;
+      disqualifiedAt?: Date;
+      disqualifiedBy?: string;
+    }> = [];
+
+    for (const review of flaggedReviews) {
+      const flags = flagsByReview.get(review._id.toString());
+      if (flags && flags.length > 0) {
+        const application = applications.find(app => app._id.toString() === review.application.toString());
+        if (application) {
+          // Use the first flag for the main flagging info
+          const firstFlag = flags[0];
+          flaggedApps.push({
+            _id: application._id,
+            applicantID: application.applicantID,
+            applicantYear: application.applicantYear,
+            answers: application.answers,
+            flaggedBy: firstFlag.author,
+            flaggedAt: review.submittedAt, // Use review submission time as flagging time
+            flagReason: "Flagged by reader", // Default reason since flags don't store reasons
+            disqualified: application.disqualified || false,
+            disqualificationReason: application.disqualificationReason,
+            disqualifiedAt: application.disqualifiedAt,
+            disqualifiedBy: application.disqualifiedBy,
+          });
+        }
+      }
+    }
+
+    // Sort by flaggedAt (newest first)
+    flaggedApps.sort((a, b) => {
+      const aTime = a.flaggedAt instanceof Date ? a.flaggedAt.getTime() : new Date(a.flaggedAt).getTime();
+      const bTime = b.flaggedAt instanceof Date ? b.flaggedAt.getTime() : new Date(b.flaggedAt).getTime();
+      return bTime - aTime;
+    });
+
+    return flaggedApps;
+  }
+
+  /**
+   * @action _disqualifyApplication (application: Application, reason: String, disqualifiedBy: User, disqualifiedAt: DateTime)
+   * @purpose: Officially disqualify a flagged application (admin action)
+   * @requires: Application exists and is flagged, disqualifiedBy user is admin, reason is non-empty
+   * @effects: Set disqualification details on the application
+   */
+  async _disqualifyApplication(
+    {
+      application,
+      reason,
+      disqualifiedBy,
+      disqualifiedAt,
+    }: {
+      application: Application;
+      reason: string;
+      disqualifiedBy: string;
+      disqualifiedAt: Date;
+    },
+  ): Promise<{ success: true } | { error: string }> {
+    // Validate application exists and has flags
+    const app = await this.applications.findOne({ _id: application });
+    if (!app) {
+      return { error: "Application not found" };
+    }
+
+    // Check if application has flags in ReviewRecords
+    const reviews = await this.db.collection("ReviewRecords.reviews").find({
+      application: application,
+    }).toArray();
+
+    const reviewIds = reviews.map(review => review._id);
+    const redFlags = await this.db.collection("ReviewRecords.redFlags").find({
+      review: { $in: reviewIds },
+    }).toArray();
+
+    if (redFlags.length === 0) {
+      return { error: "Application is not flagged" };
+    }
+
+    // Validate admin user
+    const adminCheck = await this.db.collection("EventDirectory.admins").findOne({ _id: disqualifiedBy });
+    if (!adminCheck) {
+      return { error: "User is not admin" };
+    }
+
+    // Validate reason
+    if (!reason || reason.trim().length === 0) {
+      return { error: "Disqualification reason is required" };
+    }
+
+    // Update application
+    await this.applications.updateOne(
+      { _id: application },
+      {
+        $set: {
+          disqualified: true,
+          disqualificationReason: reason.trim(),
+          disqualifiedBy: disqualifiedBy,
+          disqualifiedAt: disqualifiedAt,
+        },
+      },
+    );
+
+    return { success: true };
+  }
+
+  /**
+   * @action _removeFlag (application: Application, removedBy: User, removedAt: DateTime)
+   * @purpose: Remove flag from an application (admin action)
+   * @requires: Application exists and is flagged, removedBy user is admin
+   * @effects: Remove flag but keep disqualification status if already disqualified
+   */
+  async _removeFlag(
+    {
+      application,
+      removedBy,
+      removedAt,
+    }: {
+      application: Application;
+      removedBy: string;
+      removedAt: Date;
+    },
+  ): Promise<{ success: true } | { error: string }> {
+    // Validate application exists and has flags
+    const app = await this.applications.findOne({ _id: application });
+    if (!app) {
+      return { error: "Application not found" };
+    }
+
+    // Check if application has flags in ReviewRecords
+    const reviews = await this.db.collection("ReviewRecords.reviews").find({
+      application: application,
+    }).toArray();
+
+    const reviewIds = reviews.map(review => review._id);
+    const redFlags = await this.db.collection("ReviewRecords.redFlags").find({
+      review: { $in: reviewIds },
+    }).toArray();
+
+    if (redFlags.length === 0) {
+      return { error: "Application is not flagged" };
+    }
+
+    // Validate admin user
+    const adminCheck = await this.db.collection("EventDirectory.admins").findOne({ _id: removedBy });
+    if (!adminCheck) {
+      return { error: "User is not admin" };
+    }
+
+    // Remove all flags from ReviewRecords for this application
+    await this.db.collection("ReviewRecords.redFlags").deleteMany({
+      review: { $in: reviewIds },
+    });
+
+    return { success: true };
+  }
+
+  /**
+   * @action _undisqualifyApplication (application: Application, undisqualifiedBy: User, reason: String)
+   * @purpose: Remove disqualification status from an application (admin action)
+   * @requires: Application exists and is disqualified, undisqualifiedBy user is admin
+   * @effects: Remove disqualification status and log the un-disqualification action
+   */
+  async _undisqualifyApplication(
+    {
+      application,
+      undisqualifiedBy,
+      reason,
+    }: {
+      application: Application;
+      undisqualifiedBy: string;
+      reason?: string;
+    },
+  ): Promise<{ success: true; message: string } | { error: string }> {
+    // Validate application exists and is disqualified
+    const app = await this.applications.findOne({ _id: application });
+    if (!app) {
+      return { error: "Application not found" };
+    }
+
+    if (!app.disqualified) {
+      return { error: "Application is not currently disqualified" };
+    }
+
+    // Validate admin user
+    const adminCheck = await this.db.collection("EventDirectory.admins").findOne({ _id: undisqualifiedBy });
+    if (!adminCheck) {
+      return { error: "Admin authorization required" };
+    }
+
+    // Update application to remove disqualification and log un-disqualification
+    await this.applications.updateOne(
+      { _id: application },
+      {
+        $set: {
+          disqualified: false,
+          disqualificationReason: undefined,
+          disqualifiedAt: undefined,
+          disqualifiedBy: undefined,
+          undisqualifiedAt: new Date(),
+          undisqualifiedBy: undisqualifiedBy,
+          undisqualificationReason: reason || "Un-disqualified by admin",
+        },
+      },
+    );
+
+    return {
+      success: true,
+      message: "Application un-disqualified successfully"
+    };
+  }
+
+  /**
+   * @query _getDisqualifiedApplications (event: Event)
+   * @purpose: Get all disqualified applications for CSV export
+   * @effects: Returns all disqualified applications with disqualification details
+   */
+  async _getDisqualifiedApplications(
+    { event }: { event: Event },
+  ): Promise<Array<{
+    _id: Application;
+    applicantID: string;
+    disqualificationReason: string;
+    disqualifiedAt: Date;
+    disqualifiedBy: string;
+  }> | { error: string }> {
+    // Validate event exists
+    const eventExists = await this.db.collection("EventDirectory.events").findOne({ _id: event });
+    if (!eventExists) {
+      return { error: "Event not found" };
+    }
+
+    // Get all disqualified applications for this event
+    const disqualifiedApps = await this.applications.find({
+      event: event,
+      disqualified: true,
+    }).sort({ disqualifiedAt: -1 }).toArray();
+
+    // Return only the fields needed for CSV export
+    return disqualifiedApps.map(app => ({
+      _id: app._id,
+      applicantID: app.applicantID,
+      disqualificationReason: app.disqualificationReason!,
+      disqualifiedAt: app.disqualifiedAt!,
+      disqualifiedBy: app.disqualifiedBy!,
+    }));
   }
 }

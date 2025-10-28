@@ -310,6 +310,10 @@
 
 **Effects:**
 
+- Deletes any existing review record for this application by this user (if it exists).
+- Removes any flags associated with the deleted review.
+- Deletes any scores and comments associated with the deleted review.
+- Creates a skip record (increments skip count).
 - Adds the user to the readers set for the related `AppStatus`.
 - Deletes the current assignment.
 
@@ -360,7 +364,8 @@
 "startTime": "Date",
 "event": "ID"
 },
-"endTime": "Date"
+"endTime": "Date",
+"activeTime": "number (optional)"
 }
 
 **Success Response Body (Action):**
@@ -609,6 +614,241 @@
 "applicantID": "string",
 "applicantYear": "string",
 "answers": ["string"]
+}
+]
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
+### POST /api/ApplicationStorage/_bulkImportApplications
+
+**Description:** Bulk import applications from CSV data.
+
+**Requirements:**
+
+- Event exists and is valid
+- `importedBy` user exists and is admin
+- Each application has valid `applicantID`, `applicantYear`, and `answers` array
+- `answers` array length must match the number of questions for the event
+- No duplicate `applicantID` values within the same event
+
+**Effects:**
+
+- Creates Application documents for each valid application
+- Calls `generateAIComments` for each successfully created application
+- Returns count of successful imports and list of errors for failed imports
+
+**Request Body:**
+{
+"event": "string (event ID)",
+"applications": [
+{
+"applicantID": "string",
+"applicantYear": "string",
+"answers": ["string", "string", ...]
+}
+],
+"importedBy": "string (user ID)"
+}
+
+**Success Response Body (Action):**
+{
+"success": true,
+"importedCount": 5,
+"errors": [
+{
+"applicantID": "string",
+"error": "string"
+}
+]
+}
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
+### POST /api/ApplicationStorage/_getFlaggedApplications
+
+**Description:** Get all flagged applications for an event (for admin dashboard). This endpoint looks for applications that have been flagged by readers through the ReviewRecords system.
+
+**Requirements:**
+
+- Event exists
+
+**Effects:**
+
+- Returns all flagged applications with flagging and disqualification details
+- Sources flagging data from ReviewRecords.redFlags collection
+- Sorted by review submission time (newest first)
+- flagReason will be "Flagged by reader" (default value)
+
+**Request Body:**
+{
+"event": "string (event ID)"
+}
+
+**Success Response Body (Query):**
+[
+{
+"_id": "string",
+"applicantID": "string",
+"applicantYear": "string",
+"answers": ["string", "string", ...],
+"flaggedBy": "string (user who flagged the review)",
+"flaggedAt": "string (ISO date - review submission time)",
+"flagReason": "string (always 'Flagged by reader')",
+"disqualified": boolean,
+"disqualificationReason": "string",
+"disqualifiedAt": "string (ISO date)",
+"disqualifiedBy": "string"
+}
+]
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
+### POST /api/ApplicationStorage/_disqualifyApplication
+
+**Description:** Officially disqualify a flagged application (admin action).
+
+**Requirements:**
+
+- Application exists and is flagged
+- disqualifiedBy user is admin
+- reason is non-empty
+
+**Effects:**
+
+- Set disqualification details on the application
+- Log the disqualification action
+
+**Request Body:**
+{
+"application": "string (application ID)",
+"reason": "string (disqualification reason)",
+"disqualifiedBy": "string (admin user ID)",
+"disqualifiedAt": "string (ISO date)"
+}
+
+**Success Response Body (Action):**
+{
+"success": true
+}
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
+### POST /api/ApplicationStorage/_removeFlag
+
+**Description:** Remove flag from an application (admin action). This endpoint removes the actual red flags from the ReviewRecords system.
+
+**Requirements:**
+
+- Application exists and is flagged
+- removedBy user is admin
+
+**Effects:**
+
+- Remove red flags from ReviewRecords.redFlags collection
+- Keep disqualification status if already disqualified
+- Log the flag removal action
+
+**Request Body:**
+{
+"application": "string (application ID)",
+"removedBy": "string (admin user ID)",
+"removedAt": "string (ISO date)"
+}
+
+**Success Response Body (Action):**
+{
+"success": true
+}
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
+### POST /api/ApplicationStorage/_undisqualifyApplication
+
+**Description:** Remove disqualification status from an application (admin action).
+
+**Requirements:**
+
+- Admin authorization required
+- Application must be currently disqualified
+- Application must exist
+
+**Effects:**
+
+- Removes disqualification status from the application
+- Preserves flagging status (application remains flagged if it was flagged)
+- Logs the un-disqualification action with timestamp and admin user
+
+**Request Body:**
+{
+"application": "string (application ID)",
+"undisqualifiedBy": "string (admin user ID)",
+"reason": "string (optional reason for un-disqualification)"
+}
+
+**Success Response Body:**
+{
+"success": true,
+"message": "Application un-disqualified successfully"
+}
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
+### POST /api/ApplicationStorage/_getDisqualifiedApplications
+
+**Description:** Get all disqualified applications for CSV export.
+
+**Requirements:**
+
+- Event exists
+
+**Effects:**
+
+- Returns all disqualified applications with disqualification details
+- Sorted by disqualifiedAt (newest first)
+
+**Request Body:**
+{
+"event": "string (event ID)"
+}
+
+**Success Response Body (Query):**
+[
+{
+"_id": "string",
+"applicantID": "string",
+"disqualificationReason": "string",
+"disqualifiedAt": "string (ISO date)",
+"disqualifiedBy": "string"
 }
 ]
 
@@ -1059,6 +1299,86 @@
 {
 "event": "ID",
 "name": "string"
+}
+]
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
+### POST /api/ApplicationAssignments/flagAndSkip
+
+**Description:** Flags an application and skips to the next one by creating a review record with a red flag.
+
+**Requirements:**
+
+- Assignment exists and belongs to the user.
+
+**Effects:**
+
+- Creates a review record with current timestamp (so flagged applications appear in history).
+- Adds a red flag to the review (proper flagging in ReviewRecords system).
+- Does NOT create skip record (flagging should not increment skip count).
+- Adds user to readers set (prevents random re-assignment, but accessible via dropdown).
+- Deletes the current assignment.
+
+**Request Body:**
+{
+"user": "ID",
+"assignment": {
+"_id": "ID",
+"user": "ID",
+"application": "ID",
+"startTime": "Date",
+"event": "ID"
+},
+"reason": "string (optional)"
+}
+
+**Success Response Body:**
+{
+"success": true
+}
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
+### POST /api/ApplicationAssignments/\_getUserFlaggedApplications
+
+**Description:** Retrieves all applications a user has flagged (without reviewing).
+
+**Requirements:**
+
+- User and event IDs are valid.
+
+**Effects:**
+
+- Returns all applications the user has flagged for this event with timestamps and application details.
+
+**Request Body:**
+{
+"user": "ID",
+"event": "ID"
+}
+
+**Success Response Body (Query):**
+[
+{
+"application": "ID",
+"timestamp": "string (ISO timestamp)",
+"reason": "string (optional)",
+"applicationDetails": {
+"_id": "string",
+"applicantID": "string",
+"applicantYear": "string"
+}
 }
 ]
 
@@ -1670,6 +1990,172 @@
 
 ---
 
+### POST /api/ReviewRecords/\_getReaderStatsForEvent
+
+**Description:** Get comprehensive reader statistics for all readers in an event.
+
+**Requirements:**
+
+- Event ID is valid.
+
+**Effects:**
+
+- Returns array of reader statistics with read counts and total times.
+- Includes all users who have at least one review.
+
+**Request Body:**
+{
+"event": "ID"
+}
+
+**Success Response Body (Query):**
+[
+{
+"userId": "string",
+"readCount": "number",
+"totalTime": "number"
+}
+]
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
+### POST /api/ApplicationAssignments/\_getSkipStatsForEvent
+
+**Description:** Get skip statistics for all users who interacted with assignments in an event.
+
+**Requirements:**
+
+- Event ID is valid.
+
+**Effects:**
+
+- Returns skip counts per user.
+
+**Request Body:**
+{
+"event": "ID"
+}
+
+**Success Response Body (Query):**
+[
+{
+"userId": "string",
+"skipCount": "number"
+}
+]
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
+### POST /api/ReviewRecords/deleteReview
+
+**Description:** Deletes a review by its ID. Only the author of the review can delete it.
+
+**Requirements:**
+
+- User must be authenticated.
+- User must be the author of the review being deleted.
+- Review ID must exist.
+
+**Effects:**
+
+- Removes the review from the database.
+- Deletes all related scores and red flags.
+- Returns success confirmation.
+
+**Request Body:**
+{
+"reviewId": "ID",
+"user": "ID"
+}
+
+**Success Response Body:**
+{
+"success": true,
+"message": "string"
+}
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
+### POST /api/ReviewRecords/\_hasUserFlaggedApplication
+
+**Description:** Checks if a user has flagged a specific application.
+
+**Requirements:**
+
+- User and application IDs are valid.
+
+**Effects:**
+
+- Returns true if the user has flagged this application, false otherwise.
+
+**Request Body:**
+{
+"user": "ID",
+"application": "ID"
+}
+
+**Success Response Body (Query):**
+true | false
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
+### POST /api/ReviewRecords/\_getUserScoresForApplication
+
+**Description:** Retrieves all scores a user submitted for a specific application in their review.
+
+**Requirements:**
+
+- User and application IDs are valid.
+
+**Effects:**
+
+- Returns the review ID and all scores the user submitted for this application.
+- Returns null if the user hasn't reviewed this application yet.
+
+**Request Body:**
+{
+"user": "ID",
+"application": "ID"
+}
+
+**Success Response Body (Query):**
+{
+"review": "ID",
+"scores": [
+{
+"criterion": "string",
+"value": "number"
+}
+]
+} | null
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
 ### POST /api/ReviewRecords/\_getUserReviewedApplications
 
 **Description:** Retrieves all applications a user has reviewed for a specific event.
@@ -1697,7 +2183,9 @@
 "_id": "string",
 "applicantID": "string",
 "applicantYear": "string"
-}
+},
+"isFlagged": "boolean (optional)",
+"flagReason": "string (optional)"
 }
 ]
 

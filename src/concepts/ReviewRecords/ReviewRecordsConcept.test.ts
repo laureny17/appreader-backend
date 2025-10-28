@@ -1228,4 +1228,501 @@ Deno.test("ReviewRecords Concept", async (t) => {
       await client.close();
     },
   );
+
+  await t.step(
+    "_getUserScoresForApplication returns scores for a reviewed application",
+    async () => {
+      const [db, client] = await testDb();
+      const reviewRecords = new ReviewRecordsConcept(db);
+
+      const author = freshID() as ID;
+      const application = freshID() as ID;
+
+      // Create application
+      await db.collection("ApplicationStorage.applications").insertOne({
+        _id: application as any,
+        event: freshID() as any,
+        applicantID: "applicant1",
+        applicantYear: "2024",
+        answers: ["answer1"],
+      });
+
+      // Submit a review with scores
+      const submitResult = await reviewRecords.submitReview({
+        author,
+        application,
+        currentTime: new Date(),
+      });
+      assert("review" in submitResult);
+      const reviewId = submitResult.review;
+
+      await reviewRecords.setScore({
+        author,
+        review: reviewId,
+        criterion: "Criteria 1",
+        value: 8,
+      });
+      await reviewRecords.setScore({
+        author,
+        review: reviewId,
+        criterion: "Criteria 2",
+        value: 7,
+      });
+
+      // Get the scores
+      const result = await reviewRecords._getUserScoresForApplication({
+        user: author,
+        application,
+      });
+
+      assertExists(result);
+      assertEquals(result!.scores.length, 2);
+      assertEquals(result!.review, reviewId);
+
+      const criterion1 = result!.scores.find((s) => s.criterion === "Criteria 1");
+      assertExists(criterion1);
+      assertEquals(criterion1!.value, 8);
+
+      const criterion2 = result!.scores.find((s) => s.criterion === "Criteria 2");
+      assertExists(criterion2);
+      assertEquals(criterion2!.value, 7);
+
+      await client.close();
+    },
+  );
+
+  await t.step(
+    "_getUserScoresForApplication returns null for unreviewed application",
+    async () => {
+      const [db, client] = await testDb();
+      const reviewRecords = new ReviewRecordsConcept(db);
+
+      const author = freshID() as ID;
+      const application = freshID() as ID;
+
+      // Create application
+      await db.collection("ApplicationStorage.applications").insertOne({
+        _id: application as any,
+        event: freshID() as any,
+        applicantID: "applicant1",
+        applicantYear: "2024",
+        answers: ["answer1"],
+      });
+
+      // Get scores for unreviewed application
+      const result = await reviewRecords._getUserScoresForApplication({
+        user: author,
+        application,
+      });
+
+      assertEquals(result, null);
+
+      await client.close();
+    },
+  );
+
+  await t.step(
+    "_getUserScoresForApplication returns only scores for the correct user",
+    async () => {
+      const [db, client] = await testDb();
+      const reviewRecords = new ReviewRecordsConcept(db);
+
+      const author1 = freshID() as ID;
+      const author2 = freshID() as ID;
+      const application = freshID() as ID;
+
+      // Create application
+      await db.collection("ApplicationStorage.applications").insertOne({
+        _id: application as any,
+        event: freshID() as any,
+        applicantID: "applicant1",
+        applicantYear: "2024",
+        answers: ["answer1"],
+      });
+
+      // Author1 submits review
+      const submitResult1 = await reviewRecords.submitReview({
+        author: author1,
+        application,
+        currentTime: new Date(),
+      });
+      assert("review" in submitResult1);
+      await reviewRecords.setScore({
+        author: author1,
+        review: submitResult1.review,
+        criterion: "Criteria 1",
+        value: 9,
+      });
+
+      // Author2 submits review
+      const submitResult2 = await reviewRecords.submitReview({
+        author: author2,
+        application,
+        currentTime: new Date(),
+      });
+      assert("review" in submitResult2);
+      await reviewRecords.setScore({
+        author: author2,
+        review: submitResult2.review,
+        criterion: "Criteria 1",
+        value: 5,
+      });
+
+      // Get author1's scores
+      const result1 = await reviewRecords._getUserScoresForApplication({
+        user: author1,
+        application,
+      });
+
+      assertExists(result1);
+      assertEquals(result1!.scores.length, 1);
+      assertEquals(result1!.scores[0].value, 9);
+      assertEquals(result1!.review, submitResult1.review);
+
+      // Get author2's scores
+      const result2 = await reviewRecords._getUserScoresForApplication({
+        user: author2,
+        application,
+      });
+
+      assertExists(result2);
+      assertEquals(result2!.scores.length, 1);
+      assertEquals(result2!.scores[0].value, 5);
+      assertEquals(result2!.review, submitResult2.review);
+
+      await client.close();
+    },
+  );
+
+  await t.step(
+    "_hasUserFlaggedApplication returns true for a flagged application",
+    async () => {
+      const [db, client] = await testDb();
+      const reviewRecords = new ReviewRecordsConcept(db);
+
+      const author = freshID() as ID;
+      const application = freshID() as ID;
+
+      // Create application
+      await db.collection("ApplicationStorage.applications").insertOne({
+        _id: application as any,
+        event: freshID() as any,
+        applicantID: "applicant1",
+        applicantYear: "2024",
+        answers: ["answer1"],
+      });
+
+      // Submit a review
+      const submitResult = await reviewRecords.submitReview({
+        author,
+        application,
+        currentTime: new Date(),
+      });
+      assert("review" in submitResult);
+      const reviewId = submitResult.review;
+
+      // Add red flag
+      await reviewRecords.addRedFlag({
+        author,
+        review: reviewId,
+      });
+
+      // Check if flagged
+      const result = await reviewRecords._hasUserFlaggedApplication({
+        user: author,
+        application,
+      });
+
+      assertEquals(result, true);
+
+      await client.close();
+    },
+  );
+
+  await t.step(
+    "_hasUserFlaggedApplication returns false for unreviewed application",
+    async () => {
+      const [db, client] = await testDb();
+      const reviewRecords = new ReviewRecordsConcept(db);
+
+      const author = freshID() as ID;
+      const application = freshID() as ID;
+
+      // Create application
+      await db.collection("ApplicationStorage.applications").insertOne({
+        _id: application as any,
+        event: freshID() as any,
+        applicantID: "applicant1",
+        applicantYear: "2024",
+        answers: ["answer1"],
+      });
+
+      // Check flags for unreviewed application
+      const result = await reviewRecords._hasUserFlaggedApplication({
+        user: author,
+        application,
+      });
+
+      assertEquals(result, false);
+
+      await client.close();
+    },
+  );
+
+  await t.step(
+    "_hasUserFlaggedApplication returns false for reviewed but unflagged application",
+    async () => {
+      const [db, client] = await testDb();
+      const reviewRecords = new ReviewRecordsConcept(db);
+
+      const author = freshID() as ID;
+      const application = freshID() as ID;
+
+      // Create application
+      await db.collection("ApplicationStorage.applications").insertOne({
+        _id: application as any,
+        event: freshID() as any,
+        applicantID: "applicant1",
+        applicantYear: "2024",
+        answers: ["answer1"],
+      });
+
+      // Submit a review but don't flag it
+      const submitResult = await reviewRecords.submitReview({
+        author,
+        application,
+        currentTime: new Date(),
+      });
+      assert("review" in submitResult);
+
+      // Check if flagged (should be false)
+      const result = await reviewRecords._hasUserFlaggedApplication({
+        user: author,
+        application,
+      });
+
+      assertEquals(result, false);
+
+      await client.close();
+    },
+  );
+
+  await t.step(
+    "deleteReview deletes a review and related records",
+    async () => {
+      const [db, client] = await testDb();
+      const reviewRecords = new ReviewRecordsConcept(db);
+
+      const author = freshID() as ID;
+      const application = freshID() as ID;
+
+      // Create application
+      await db.collection("ApplicationStorage.applications").insertOne({
+        _id: application as any,
+        event: freshID() as any,
+        applicantID: "applicant1",
+        applicantYear: "2024",
+        answers: ["answer1"],
+      });
+
+      // Submit a review
+      const submitResult = await reviewRecords.submitReview({
+        author,
+        application,
+        currentTime: new Date(),
+      });
+      assert("review" in submitResult);
+      const reviewId = submitResult.review;
+
+      // Add scores and flags
+      await reviewRecords.setScore({
+        author,
+        review: reviewId,
+        criterion: "Criteria 1",
+        value: 8,
+      });
+      await reviewRecords.addRedFlag({
+        author,
+        review: reviewId,
+      });
+
+      // Delete the review
+      const deleteResult = await reviewRecords.deleteReview({
+        reviewId,
+        user: author,
+      });
+
+      assert("success" in deleteResult);
+      assertEquals(deleteResult.success, true);
+      assertEquals(deleteResult.message, "Review deleted successfully");
+
+      // Verify review is deleted
+      const deletedReview = await db.collection("ReviewRecords.reviews")
+        .findOne({ _id: reviewId });
+      assertEquals(deletedReview, null);
+
+      // Verify scores are deleted
+      const scores = await db.collection("ReviewRecords.scores")
+        .find({ review: reviewId }).toArray();
+      assertEquals(scores.length, 0);
+
+      // Verify flags are deleted
+      const flags = await db.collection("ReviewRecords.redFlags")
+        .find({ review: reviewId }).toArray();
+      assertEquals(flags.length, 0);
+
+      await client.close();
+    },
+  );
+
+  await t.step(
+    "deleteReview requires user to be the author",
+    async () => {
+      const [db, client] = await testDb();
+      const reviewRecords = new ReviewRecordsConcept(db);
+
+      const author = freshID() as ID;
+      const otherUser = freshID() as ID;
+      const application = freshID() as ID;
+
+      // Create application
+      await db.collection("ApplicationStorage.applications").insertOne({
+        _id: application as any,
+        event: freshID() as any,
+        applicantID: "applicant1",
+        applicantYear: "2024",
+        answers: ["answer1"],
+      });
+
+      // Submit a review
+      const submitResult = await reviewRecords.submitReview({
+        author,
+        application,
+        currentTime: new Date(),
+      });
+      assert("review" in submitResult);
+      const reviewId = submitResult.review;
+
+      // Try to delete with different user
+      const deleteResult = await reviewRecords.deleteReview({
+        reviewId,
+        user: otherUser,
+      });
+
+      assert("error" in deleteResult);
+      assertEquals(deleteResult.error, "User not authorized to delete this review");
+
+      // Verify review still exists
+      const review = await db.collection("ReviewRecords.reviews")
+        .findOne({ _id: reviewId });
+      assert(review !== null);
+
+      await client.close();
+    },
+  );
+
+  await t.step(
+    "deleteReview returns error for non-existent review",
+    async () => {
+      const [db, client] = await testDb();
+      const reviewRecords = new ReviewRecordsConcept(db);
+
+      const user = freshID() as ID;
+      const nonExistentReview = freshID() as ID;
+
+      // Try to delete non-existent review
+      const deleteResult = await reviewRecords.deleteReview({
+        reviewId: nonExistentReview,
+        user,
+      });
+
+      assert("error" in deleteResult);
+      assertEquals(deleteResult.error, "Review not found");
+
+      await client.close();
+    },
+  );
+
+  await t.step(
+    "_getReaderStatsForEvent returns stats for all readers",
+    async () => {
+      const [db, client] = await testDb();
+      const reviewRecords = new ReviewRecordsConcept(db);
+
+      const reader1 = freshID() as ID;
+      const reader2 = freshID() as ID;
+      const event = freshID() as ID;
+
+      // Create applications
+      const app1 = freshID() as ID;
+      const app2 = freshID() as ID;
+
+      await db.collection("ApplicationStorage.applications").insertOne({
+        _id: app1 as any,
+        event: event as any,
+        applicantID: "applicant1",
+        applicantYear: "2024",
+        answers: ["answer1"],
+      });
+
+      await db.collection("ApplicationStorage.applications").insertOne({
+        _id: app2 as any,
+        event: event as any,
+        applicantID: "applicant2",
+        applicantYear: "2024",
+        answers: ["answer2"],
+      });
+
+      // Reader1 reviews both applications
+      const review1 = await reviewRecords.submitReview({
+        author: reader1,
+        application: app1,
+        currentTime: new Date(),
+      });
+      assert("review" in review1);
+      await reviewRecords.submitReview({
+        author: reader1,
+        application: app2,
+        currentTime: new Date(),
+      });
+
+      // Reader2 reviews one application
+      await reviewRecords.submitReview({
+        author: reader2,
+        application: app1,
+        currentTime: new Date(),
+      });
+
+      // Get stats
+      const stats = await reviewRecords._getReaderStatsForEvent({ event });
+
+      assertEquals(stats.length, 2);
+      const reader1Stats = stats.find(s => s.userId === reader1.toString());
+      const reader2Stats = stats.find(s => s.userId === reader2.toString());
+
+      assertExists(reader1Stats);
+      assertEquals(reader1Stats.readCount, 2);
+
+      assertExists(reader2Stats);
+      assertEquals(reader2Stats.readCount, 1);
+
+      await client.close();
+    },
+  );
+
+  await t.step(
+    "_getReaderStatsForEvent returns empty array for event with no reviews",
+    async () => {
+      const [db, client] = await testDb();
+      const reviewRecords = new ReviewRecordsConcept(db);
+
+      const event = freshID() as ID;
+
+      const stats = await reviewRecords._getReaderStatsForEvent({ event });
+
+      assertEquals(stats.length, 0);
+
+      await client.close();
+    },
+  );
 });
