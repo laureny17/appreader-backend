@@ -170,17 +170,8 @@ export default class AuthAccountsConcept {
   async _getAllUsers(params: { caller: User }): Promise<Array<{_id: User; name: string; email: string}> | { error: string }> {
     const caller = params.caller;
 
-    // Debug logging first
-    console.log(`[AuthAccounts _getAllUsers] Checking admin for caller: ${caller}`);
-    console.log(`[AuthAccounts _getAllUsers] Caller type:`, typeof caller);
-
     // Check if caller is an admin by querying EventDirectory.admins
-    const allAdmins = await this.db.collection("EventDirectory.admins").find({}).toArray();
-    console.log(`[AuthAccounts _getAllUsers] All admins in collection:`, JSON.stringify(allAdmins));
-    console.log(`[AuthAccounts _getAllUsers] Looking for: ${caller}`);
-
     const adminDoc = await this.db.collection("EventDirectory.admins").findOne({ _id: caller });
-    console.log(`[AuthAccounts _getAllUsers] Admin doc found:`, adminDoc);
 
     if (!adminDoc) {
       return { error: "Only admins can retrieve all users." };

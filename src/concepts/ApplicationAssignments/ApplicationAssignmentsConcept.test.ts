@@ -118,7 +118,7 @@ Deno.test("ApplicationAssignmentsConcept: Principle Fulfillment - Full User Assi
   );
 
   await t.step(
-    "3. User Alice cannot get another assignment while one is active",
+    "3. User Alice gets the same assignment when requesting again (idempotent)",
     async () => {
       const startTime = new Date();
       const result = await applicationAssignments.getNextAssignment({
@@ -127,15 +127,19 @@ Deno.test("ApplicationAssignmentsConcept: Principle Fulfillment - Full User Assi
         startTime: startTime,
       });
 
-      assert(!result.assignment, "Alice should not receive a new assignment.");
-      assert(
-        result.error,
-        "An error is expected for trying to get a second assignment.",
-      );
+      // Should return the existing assignment, not create a new one
+      assert(result.assignment, "Alice should receive her existing assignment.");
+      assert(!result.error, "No error expected when getting existing assignment.");
+
+      // Verify the assignment is the same one from step 2
+      const currentResult = await applicationAssignments.getCurrentAssignment({
+        user: USER_ALICE,
+        event: EVENT_SPRING_2024,
+      });
       assertEquals(
-        result.error,
-        "User already has an active assignment for this event.",
-        "Error message should indicate existing assignment.",
+        result.assignment?._id,
+        currentResult.assignment?._id,
+        "Should return the same assignment."
       );
     },
   );
@@ -668,6 +672,95 @@ Deno.test("ApplicationAssignmentsConcept: submitAndIncrement - Correctly updates
     0,
     "Current assignment should be removed after submission.",
   );
+
+  client.close();
+});
+
+Deno.test("ApplicationAssignmentsConcept: abandonAssignment - deletes assignment without incrementing reads", async () => {
+  const [db, client] = await testDb();
+  const applicationAssignments = new ApplicationAssignmentsConcept(db);
+  await clearCollections(db);
+
+  // Register an application
+  await applicationAssignments.registerApplicationForAssignment({
+    application: APP_ALPHA,
+    event: EVENT_SPRING_2024,
+  });
+
+  // Get an assignment
+  const assignment = await applicationAssignments.getNextAssignment({
+    user: USER_ALICE,
+    event: EVENT_SPRING_2024,
+    startTime: new Date(),
+  });
+
+  assert("assignment" in assignment, "Should return assignment");
+
+  // Abandon the assignment
+  const abandonResult = await applicationAssignments.abandonAssignment({
+    user: USER_ALICE,
+    event: EVENT_SPRING_2024,
+  });
+
+  assert(!("error" in abandonResult), "Should succeed");
+
+  // Verify assignment was deleted
+  const assignmentCount = await db.collection("ApplicationAssignments.currentAssignments").countDocuments();
+  assertEquals(assignmentCount, 0, "Assignment should be deleted");
+
+  // Verify reads were NOT incremented
+  const appStatus = await db.collection("ApplicationAssignments.appStatus").findOne({
+    application: APP_ALPHA,
+    event: EVENT_SPRING_2024,
+  });
+  assertEquals(appStatus?.readsCompleted, 0, "readsCompleted should be 0");
+  assertEquals(appStatus?.readers, [], "readers should be empty");
+
+  client.close();
+});
+
+Deno.test("ApplicationAssignmentsConcept: getCurrentAssignment - returns active assignment", async () => {
+  const [db, client] = await testDb();
+  const applicationAssignments = new ApplicationAssignmentsConcept(db);
+  await clearCollections(db);
+
+  // Register an application and get an assignment
+  await applicationAssignments.registerApplicationForAssignment({
+    application: APP_ALPHA,
+    event: EVENT_SPRING_2024,
+  });
+
+  const assignmentResult = await applicationAssignments.getNextAssignment({
+    user: USER_ALICE,
+    event: EVENT_SPRING_2024,
+    startTime: new Date(),
+  });
+
+  assert("assignment" in assignmentResult, "Should return assignment");
+
+  // Get the current assignment
+  const currentResult = await applicationAssignments.getCurrentAssignment({
+    user: USER_ALICE,
+    event: EVENT_SPRING_2024,
+  });
+
+  assert(currentResult.assignment !== null, "Should return the assignment");
+  assertEquals(currentResult.assignment?._id, assignmentResult.assignment?._id);
+
+  client.close();
+});
+
+Deno.test("ApplicationAssignmentsConcept: getCurrentAssignment - returns null when no assignment exists", async () => {
+  const [db, client] = await testDb();
+  const applicationAssignments = new ApplicationAssignmentsConcept(db);
+  await clearCollections(db);
+
+  const currentResult = await applicationAssignments.getCurrentAssignment({
+    user: USER_ALICE,
+    event: EVENT_SPRING_2024,
+  });
+
+  assertEquals(currentResult.assignment, null, "Should return null");
 
   client.close();
 });

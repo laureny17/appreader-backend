@@ -272,16 +272,18 @@
 
 ### POST /api/ApplicationAssignments/getNextAssignment
 
-**Description:** Assigns the next eligible application to a user for review.
+**Description:** Assigns the next eligible application to a user for review. Automatically expires assignments older than 12 hours.
 
 **Requirements:**
 
-- The user has no current assignment for this event.
+- The user has no current assignment for this event, or their current assignment is older than 12 hours.
 
 **Effects:**
 
-- Selects an application the user has not read/skipped and that has the fewest reads so far.
-- Creates a new `CurrentAssignment` record.
+- If the user has an assignment older than 12 hours, it is deleted.
+- If the user has a valid current assignment, it is returned.
+- Otherwise, selects an application the user has not read/skipped and that has the fewest reads so far.
+- Creates a new `CurrentAssignment` record (if no valid assignment existed).
 
 **Request Body:**
 {
@@ -374,6 +376,71 @@
 **Success Response Body (Action):**
 {
 "application": "ID"
+}
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
+### POST /api/ApplicationAssignments/abandonAssignment
+
+**Description:** Allows a user to abandon their current assignment and mark it as incomplete.
+
+**Requirements:**
+
+- The user has an active assignment for this event.
+
+**Effects:**
+
+- Deletes the user's current assignment from the database without incrementing reads or adding to readers.
+
+**Request Body:**
+{
+"user": "ID",
+"event": "ID"
+}
+
+**Success Response Body (Action):**
+{}
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
+### POST /api/ApplicationAssignments/getCurrentAssignment
+
+**Description:** Returns the user's current active assignment for an event, if one exists. Automatically expires assignments older than 12 hours.
+
+**Requirements:**
+
+- None.
+
+**Effects:**
+
+- Returns the current assignment if it exists and is not older than 12 hours.
+- Returns null if no assignment exists or the assignment has expired.
+
+**Request Body:**
+{
+"user": "ID",
+"event": "ID"
+}
+
+**Success Response Body (Query):**
+{
+"assignment": {
+"\_id": "ID",
+"user": "ID",
+"application": "ID",
+"startTime": "Date",
+"event": "ID"
+} | null
 }
 
 **Error Response Body:**
@@ -1204,7 +1271,8 @@
 {
 "author": "ID",
 "application": "ID",
-"currentTime": "Date"
+"currentTime": "Date",
+"activeTime": "number (optional)"
 }
 
 **Success Response Body (Action):**
@@ -1459,6 +1527,7 @@
 "review": "ID",
 "author": "ID",
 "submittedAt": "Date",
+"activeTime": "number",
 "scores": [
 {
 "criterion": "string",

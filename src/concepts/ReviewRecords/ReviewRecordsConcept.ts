@@ -22,12 +22,14 @@ type Comment = ID; // Each Comment document will have its own ID
  *   an Application
  *   an author User
  *   a submittedAt DateTime
+ *   an activeTime Number (optional, in seconds)
  */
 interface ReviewDoc {
   _id: Review;
   application: Application;
   author: User;
   submittedAt: Date;
+  activeTime?: number; // Time in seconds that the user was actively reviewing
 }
 
 /**
@@ -93,10 +95,11 @@ export default class ReviewRecordsConcept {
    * effects: create a Review with the provided details
    */
   async submitReview(
-    { author, application, currentTime }: {
+    { author, application, currentTime, activeTime }: {
       author: User;
       application: Application;
       currentTime: Date;
+      activeTime?: number; // Time in seconds that the user was actively reviewing
     },
   ): Promise<{ review: Review } | { error: string }> {
     // requires: author must not have already submitted a review for the application
@@ -109,12 +112,19 @@ export default class ReviewRecordsConcept {
 
     // effects: create a Review with the provided details
     const newReviewId = freshID() as Review;
-    await this.reviews.insertOne({
+    const reviewDoc: ReviewDoc = {
       _id: newReviewId,
       author,
       application,
       submittedAt: currentTime,
-    });
+    };
+
+    // Include activeTime if provided
+    if (activeTime !== undefined) {
+      reviewDoc.activeTime = activeTime;
+    }
+
+    await this.reviews.insertOne(reviewDoc);
 
     return { review: newReviewId };
   }
@@ -383,6 +393,7 @@ export default class ReviewRecordsConcept {
     review: Review;
     author: User;
     submittedAt: Date;
+    activeTime: number;
     scores: Array<{ criterion: string; value: number }>;
   }> | { error: string }> {
     // Get all reviews for this application
@@ -415,6 +426,7 @@ export default class ReviewRecordsConcept {
       review: review._id,
       author: review.author,
       submittedAt: review.submittedAt,
+      activeTime: review.activeTime || 0, // Default to 0 if not provided
       scores: scoresByReview.get(review._id) || [],
     }));
   }

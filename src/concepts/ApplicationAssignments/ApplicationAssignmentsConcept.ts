@@ -146,13 +146,25 @@ export default class ApplicationAssignmentsConcept {
       startTime: DateTime;
     },
   ): Promise<GetNextAssignmentResult> {
-    // @requires: user is not currently assigned an assignment for this event
+    // Check if user has an active assignment, and expire it if older than 12 hours
+    const EXPIRATION_MS = 12 * 60 * 60 * 1000; // 12 hours
     const existingAssignment = await this.currentAssignments.findOne({
       user,
       event,
     });
+
     if (existingAssignment) {
-      return { error: "User already has an active assignment for this event." };
+      // Check if assignment is expired
+      const assignmentAge = Date.now() - new Date(existingAssignment.startTime).getTime();
+
+      if (assignmentAge > EXPIRATION_MS) {
+        // Expire the old assignment
+        await this.currentAssignments.deleteOne({ _id: existingAssignment._id });
+        // Proceed with getting a new assignment
+      } else {
+        // Return the existing non-expired assignment
+        return { assignment: existingAssignment };
+      }
     }
 
     // Find apps currently assigned for this event and exclude them
@@ -296,5 +308,73 @@ export default class ApplicationAssignmentsConcept {
 
     // @effects: Return the application associated with the assignment
     return { application: assignment.application };
+  }
+
+  /**
+   * abandonAssignment
+   *
+   * Allows a user to abandon their current assignment and mark it as incomplete.
+   * Deletes the assignment without incrementing reads or adding to readers.
+   *
+   * @param user The ID of the user abandoning the assignment.
+   * @param event The ID of the event for which to abandon the assignment.
+   * @returns An empty object (`{}`) on success, or an object with an `error` message
+   *          if no active assignment exists for this user and event.
+   */
+  async abandonAssignment(
+    { user, event }: { user: User; event: Event },
+  ): Promise<Empty | { error: string }> {
+    const existingAssignment = await this.currentAssignments.findOne({
+      user,
+      event,
+    });
+
+    if (!existingAssignment) {
+      return {
+        error: "User does not have an active assignment for this event.",
+      };
+    }
+
+    // Delete the assignment without affecting readsCompleted or readers
+    await this.currentAssignments.deleteOne({ _id: existingAssignment._id });
+
+    return {};
+  }
+
+  /**
+   * getCurrentAssignment
+   *
+   * Returns the user's current active assignment for an event, if one exists.
+   * Automatically expires assignments older than 12 hours.
+   *
+   * @param user The ID of the user.
+   * @param event The ID of the event.
+   * @returns The current assignment object if it exists and is not expired,
+   *          or null if no assignment exists or the assignment has expired.
+   */
+  async getCurrentAssignment(
+    { user, event }: { user: User; event: Event },
+  ): Promise<{ assignment: CurrentAssignments | null }> {
+    const existingAssignment = await this.currentAssignments.findOne({
+      user,
+      event,
+    });
+
+    if (!existingAssignment) {
+      return { assignment: null };
+    }
+
+    // Check if assignment is expired (older than 12 hours)
+    const assignmentAge =
+      Date.now() - new Date(existingAssignment.startTime).getTime();
+    const EXPIRATION_MS = 12 * 60 * 60 * 1000; // 12 hours
+
+    if (assignmentAge > EXPIRATION_MS) {
+      // Delete expired assignment
+      await this.currentAssignments.deleteOne({ _id: existingAssignment._id });
+      return { assignment: null };
+    }
+
+    return { assignment: existingAssignment };
   }
 }

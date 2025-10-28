@@ -713,4 +713,94 @@ Deno.test("ReviewRecords Concept", async (t) => {
       await client.close();
     },
   );
+
+  await t.step(
+    "submitReview stores activeTime when provided",
+    async () => {
+      const [db, client] = await testDb();
+      const reviewRecords = new ReviewRecordsConcept(db);
+
+      const author = freshID() as ID;
+      const app = freshID() as ID;
+
+      // Submit review with activeTime
+      const reviewResult = await reviewRecords.submitReview({
+        author,
+        application: app,
+        currentTime: new Date(),
+        activeTime: 120, // 2 minutes
+      });
+
+      assert("review" in reviewResult, "Should return review ID");
+
+      // Check that activeTime was stored
+      const storedReview = await db.collection("ReviewRecords.reviews").findOne({
+        _id: reviewResult.review
+      });
+      assertEquals(storedReview?.activeTime, 120);
+
+      await client.close();
+    },
+  );
+
+  await t.step(
+    "_getReviewsWithScoresByApplication includes activeTime in response",
+    async () => {
+      const [db, client] = await testDb();
+      const reviewRecords = new ReviewRecordsConcept(db);
+
+      const author = freshID() as ID;
+      const app = freshID() as ID;
+
+      // Submit review with activeTime
+      const reviewResult = await reviewRecords.submitReview({
+        author,
+        application: app,
+        currentTime: new Date(),
+        activeTime: 180, // 3 minutes
+      });
+
+      assert("review" in reviewResult, "Should return review ID");
+
+      // Get reviews for this application
+      const reviews = await reviewRecords._getReviewsWithScoresByApplication({
+        application: app
+      });
+
+      assert(Array.isArray(reviews), "Should return array");
+      assertEquals(reviews.length, 1, "Should have 1 review");
+      assertEquals(reviews[0].activeTime, 180, "Should include activeTime");
+
+      await client.close();
+    },
+  );
+
+  await t.step(
+    "_getReviewsWithScoresByApplication returns activeTime: 0 when not provided",
+    async () => {
+      const [db, client] = await testDb();
+      const reviewRecords = new ReviewRecordsConcept(db);
+
+      const author = freshID() as ID;
+      const app = freshID() as ID;
+
+      // Submit review without activeTime
+      await reviewRecords.submitReview({
+        author,
+        application: app,
+        currentTime: new Date(),
+      });
+
+      // Get reviews for this application
+      const reviews = await reviewRecords._getReviewsWithScoresByApplication({
+        application: app
+      });
+
+      assert(Array.isArray(reviews), "Should return array");
+      assertEquals(reviews.length, 1, "Should have 1 review");
+      assertEquals(reviews[0].activeTime, 0, "Should default to 0");
+
+      await client.close();
+    },
+  );
 });

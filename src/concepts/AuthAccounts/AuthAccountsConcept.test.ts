@@ -255,7 +255,7 @@ Deno.test("AuthAccountsConcept functionality", async (testContext) => {
       "_getAllUsers returns error for non-admin",
       async () => {
         const nonAdminUser = freshID() as ID;
-        const result = await authAccounts._getAllUsers(nonAdminUser);
+        const result = await authAccounts._getAllUsers({ caller: nonAdminUser });
         assert("error" in result, "Should return error for non-admin");
         assertEquals(result.error, "Only admins can retrieve all users.");
       },
@@ -269,7 +269,7 @@ Deno.test("AuthAccountsConcept functionality", async (testContext) => {
         await db.collection("EventDirectory.admins").insertOne({ _id: adminUserId as any });
 
         // Get all users
-        const result = await authAccounts._getAllUsers(adminUserId);
+        const result = await authAccounts._getAllUsers({ caller: adminUserId });
         assert(Array.isArray(result), "Should return array");
         assert(result.length >= 3, "Should have at least the registered users");
 
