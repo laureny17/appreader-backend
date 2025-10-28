@@ -1667,3 +1667,41 @@
 {
 "error": "string"
 }
+
+---
+
+### POST /api/ReviewRecords/\_getUserReviewedApplications
+
+**Description:** Retrieves all applications a user has reviewed for a specific event.
+
+**Requirements:**
+
+- User and event IDs are valid.
+
+**Effects:**
+
+- Returns all applications the user has reviewed for this event with timestamps and application details.
+
+**Request Body:**
+{
+"user": "ID",
+"event": "ID"
+}
+
+**Success Response Body (Query):**
+[
+{
+"application": "ID",
+"submittedAt": "string (ISO timestamp)",
+"applicationDetails": {
+"_id": "string",
+"applicantID": "string",
+"applicantYear": "string"
+}
+}
+]
+
+**Error Response Body:**
+{
+"error": "string"
+}

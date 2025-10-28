@@ -16,6 +16,7 @@ type Review = ID;
 type Score = ID; // Each Score document will have its own ID
 type RedFlag = ID; // Each RedFlag document will have its own ID
 type Comment = ID; // Comment document ID
+type Event = ID;
 
 /**
  * a set of Reviews with
@@ -586,5 +587,54 @@ export default class ReviewRecordsConcept {
     }
 
     return { success: true };
+  }
+
+  /**
+   * _getUserReviewedApplications (user: User, event: Event)
+   * purpose: Retrieves all applications a user has reviewed for a specific event
+   * effects: Returns all applications with their submission timestamps and basic details
+   */
+  async _getUserReviewedApplications(
+    { user, event }: { user: User; event: Event },
+  ): Promise<Array<{
+    application: Application;
+    submittedAt: string;
+    applicationDetails: {
+      _id: string;
+      applicantID: string;
+      applicantYear: string;
+    };
+  }>> {
+    // Get all applications for this event
+    const applications = await this.db.collection("ApplicationStorage.applications")
+      .find({ event }).toArray();
+
+    if (applications.length === 0) {
+      return [];
+    }
+
+    const applicationIds = applications.map((app) => app._id);
+
+    // Get all reviews by this user for these applications
+    const reviews = await this.reviews.find({
+      author: user,
+      application: { $in: applicationIds as any },
+    })
+      .sort({ submittedAt: -1 })
+      .toArray();
+
+    // Create a map of application details
+    const appDetailsMap = new Map(applications.map((app) => [app._id.toString(), {
+      _id: app._id.toString(),
+      applicantID: app.applicantID,
+      applicantYear: app.applicantYear,
+    }]));
+
+    // Return reviews with application details
+    return reviews.map((review) => ({
+      application: review.application,
+      submittedAt: review.submittedAt.toISOString(),
+      applicationDetails: appDetailsMap.get(review.application.toString())!,
+    }));
   }
 }

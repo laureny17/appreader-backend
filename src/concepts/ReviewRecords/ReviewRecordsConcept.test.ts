@@ -1050,4 +1050,182 @@ Deno.test("ReviewRecords Concept", async (t) => {
       await client.close();
     },
   );
+
+  await t.step(
+    "_getUserReviewedApplications returns all applications user has reviewed for an event",
+    async () => {
+      const [db, client] = await testDb();
+      const reviewRecords = new ReviewRecordsConcept(db);
+
+      const author = freshID() as ID;
+      const event1 = freshID() as ID;
+      const event2 = freshID() as ID;
+      const app1 = freshID() as ID;
+      const app2 = freshID() as ID;
+      const app3 = freshID() as ID; // in different event
+
+      // Create applications in event1
+      await db.collection("ApplicationStorage.applications").insertMany([
+        {
+          _id: app1 as any,
+          event: event1 as any,
+          applicantID: "applicant1",
+          applicantYear: "2024",
+          answers: ["answer1"],
+        },
+        {
+          _id: app2 as any,
+          event: event1 as any,
+          applicantID: "applicant2",
+          applicantYear: "2024",
+          answers: ["answer2"],
+        },
+      ]);
+
+      // Create application in event2
+      await db.collection("ApplicationStorage.applications").insertOne({
+        _id: app3 as any,
+        event: event2 as any,
+        applicantID: "applicant3",
+        applicantYear: "2024",
+        answers: ["answer3"],
+      });
+
+      // Create reviews for event1
+      const review1 = await reviewRecords.submitReview({
+        author,
+        application: app1,
+        currentTime: new Date("2024-01-01"),
+      });
+      const review2 = await reviewRecords.submitReview({
+        author,
+        application: app2,
+        currentTime: new Date("2024-01-02"),
+      });
+
+      // Create review for event2
+      await reviewRecords.submitReview({
+        author,
+        application: app3,
+        currentTime: new Date("2024-01-03"),
+      });
+
+      // Get reviewed applications for event1
+      const result = await reviewRecords._getUserReviewedApplications({
+        user: author,
+        event: event1,
+      });
+
+      assertEquals(result.length, 2, "Should return 2 applications");
+
+      // Check that app1 and app2 are in the results
+      const appIds = result.map((r) => r.application);
+      assert(appIds.includes(app1), "Should include app1");
+      assert(appIds.includes(app2), "Should include app2");
+      assert(!appIds.includes(app3), "Should not include app3 (different event)");
+
+      // Check application details are included
+      const app1Result = result.find((r) => r.application === app1);
+      assertExists(app1Result);
+      assertEquals(app1Result!.applicationDetails.applicantID, "applicant1");
+      assertEquals(app1Result!.applicationDetails.applicantYear, "2024");
+
+      await client.close();
+    },
+  );
+
+  await t.step(
+    "_getUserReviewedApplications returns empty array when user has no reviews",
+    async () => {
+      const [db, client] = await testDb();
+      const reviewRecords = new ReviewRecordsConcept(db);
+
+      const author = freshID() as ID;
+      const event = freshID() as ID;
+
+      const result = await reviewRecords._getUserReviewedApplications({
+        user: author,
+        event,
+      });
+
+      assertEquals(result.length, 0, "Should return empty array");
+
+      await client.close();
+    },
+  );
+
+  await t.step(
+    "_getUserReviewedApplications returns empty array when event has no applications",
+    async () => {
+      const [db, client] = await testDb();
+      const reviewRecords = new ReviewRecordsConcept(db);
+
+      const author = freshID() as ID;
+      const event = freshID() as ID;
+
+      const result = await reviewRecords._getUserReviewedApplications({
+        user: author,
+        event,
+      });
+
+      assertEquals(result.length, 0, "Should return empty array");
+
+      await client.close();
+    },
+  );
+
+  await t.step(
+    "_getUserReviewedApplications returns reviews sorted by submittedAt descending",
+    async () => {
+      const [db, client] = await testDb();
+      const reviewRecords = new ReviewRecordsConcept(db);
+
+      const author = freshID() as ID;
+      const event = freshID() as ID;
+      const app1 = freshID() as ID;
+      const app2 = freshID() as ID;
+
+      // Create applications
+      await db.collection("ApplicationStorage.applications").insertMany([
+        {
+          _id: app1 as any,
+          event: event as any,
+          applicantID: "applicant1",
+          applicantYear: "2024",
+          answers: ["answer1"],
+        },
+        {
+          _id: app2 as any,
+          event: event as any,
+          applicantID: "applicant2",
+          applicantYear: "2024",
+          answers: ["answer2"],
+        },
+      ]);
+
+      // Submit reviews in order
+      await reviewRecords.submitReview({
+        author,
+        application: app1,
+        currentTime: new Date("2024-01-01"),
+      });
+      await reviewRecords.submitReview({
+        author,
+        application: app2,
+        currentTime: new Date("2024-01-02"),
+      });
+
+      const result = await reviewRecords._getUserReviewedApplications({
+        user: author,
+        event,
+      });
+
+      assertEquals(result.length, 2);
+      // Most recent should be first
+      assertEquals(result[0].application, app2);
+      assertEquals(result[1].application, app1);
+
+      await client.close();
+    },
+  );
 });
