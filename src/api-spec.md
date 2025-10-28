@@ -88,14 +88,12 @@
 }
 
 **Success Response Body (Query):**
-[
 {
 "_id": "ID",
 "email": "string",
 "name": "string",
 "passwordHash": "string"
-}
-]
+} | null
 
 **Error Response Body:**
 {
@@ -122,14 +120,12 @@
 }
 
 **Success Response Body (Query):**
-[
 {
 "_id": "ID",
 "email": "string",
 "name": "string",
 "passwordHash": "string"
-}
-]
+} | null
 
 **Error Response Body:**
 {
@@ -156,11 +152,7 @@
 }
 
 **Success Response Body (Query):**
-[
-{
-"name": "string"
-}
-]
+"string" | null
 
 **Error Response Body:**
 {
@@ -187,12 +179,10 @@
 }
 
 **Success Response Body (Query):**
-[
 {
 "name": "string",
 "email": "string"
-}
-]
+} | null
 
 **Error Response Body:**
 {
@@ -914,7 +904,6 @@
 }
 
 **Success Response Body (Query):**
-[
 {
 "\_id": "ID",
 "name": "string",
@@ -930,9 +919,9 @@
 }
 ],
 "eligibilityCriteria": ["string"],
-"endDate": "Date (optional)"
-}
-]
+"questions": ["string"],
+"endDate": "Date"
+} | null
 
 **Error Response Body:**
 {
@@ -959,7 +948,6 @@
 }
 
 **Success Response Body (Query):**
-[
 {
 "\_id": "ID",
 "name": "string",
@@ -975,9 +963,9 @@
 }
 ],
 "eligibilityCriteria": ["string"],
-"endDate": "Date (optional)"
-}
-]
+"questions": ["string"],
+"endDate": "Date"
+} | null
 
 **Error Response Body:**
 {
@@ -1035,14 +1023,12 @@
 }
 
 **Success Response Body (Query):**
-[
 {
 "\_id": "ID",
 "event": "ID",
 "user": "ID",
 "verified": true | false
-}
-]
+} | null
 
 **Error Response Body:**
 {
@@ -1134,6 +1120,37 @@
 **Success Response Body (Query):**
 {
 "isAdmin": true | false
+}
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
+### POST /api/EventDirectory/_getQuestionsForEvent
+
+**Description:** Retrieves the questions for a specific event.
+
+**Requirements:**
+
+- Event exists.
+
+**Effects:**
+
+- Returns the questions array for the event.
+
+**Request Body:**
+{
+"event": "ID"
+}
+
+**Success Response Body (Query):**
+{
+"questions": ["string"]
+} | {
+"error": "string"
 }
 
 **Error Response Body:**

@@ -95,7 +95,7 @@ export default class EventDirectoryConcept {
    * @param user The ID of the user to check.
    * @returns True if the user is an admin, false otherwise.
    */
-  private async _isAdminInternal(user: User): Promise<boolean> {
+  private async _isAdminInternal({ user }: { user: User }): Promise<boolean> {
     const admin = await this.admins.findOne({ _id: user });
     return !!admin;
   }
@@ -123,7 +123,7 @@ export default class EventDirectoryConcept {
       endDate: Date;
     },
   ): Promise<{ event: Event } | { error: string }> {
-    if (!await this._isAdminInternal(caller)) {
+    if (!await this._isAdminInternal({ user: caller })) {
       return { error: "Only admins can create events." };
     }
 
@@ -161,7 +161,7 @@ export default class EventDirectoryConcept {
   async activateEvent(
     { caller, name }: { caller: User; name: string },
   ): Promise<Empty | { error: string }> {
-    if (!await this._isAdminInternal(caller)) {
+    if (!await this._isAdminInternal({ user: caller })) {
       return { error: "Only admins can activate events." };
     }
 
@@ -186,7 +186,7 @@ export default class EventDirectoryConcept {
   async inactivateEvent(
     { caller, name }: { caller: User; name: string },
   ): Promise<Empty | { error: string }> {
-    if (!await this._isAdminInternal(caller)) {
+    if (!await this._isAdminInternal({ user: caller })) {
       return { error: "Only admins can inactivate events." };
     }
 
@@ -229,7 +229,7 @@ export default class EventDirectoryConcept {
       endDate?: Date;
     },
   ): Promise<Empty | { error: string }> {
-    if (!await this._isAdminInternal(caller)) {
+    if (!await this._isAdminInternal({ user: caller })) {
       return { error: "Only admins can update event configurations." };
     }
 
@@ -276,7 +276,7 @@ export default class EventDirectoryConcept {
       user: User;
     },
   ): Promise<Empty | { error: string }> {
-    if (!await this._isAdminInternal(caller)) {
+    if (!await this._isAdminInternal({ user: caller })) {
       return { error: "Only admins can add readers." };
     }
 
@@ -327,7 +327,7 @@ export default class EventDirectoryConcept {
       user: User;
     },
   ): Promise<Empty | { error: string }> {
-    if (!await this._isAdminInternal(caller)) {
+    if (!await this._isAdminInternal({ user: caller })) {
       return { error: "Only admins can remove readers." };
     }
 
@@ -363,10 +363,10 @@ export default class EventDirectoryConcept {
   async addAdmin(
     { caller, user }: { caller: User; user: User },
   ): Promise<Empty | { error: string }> {
-    if (!await this._isAdminInternal(caller)) {
+    if (!await this._isAdminInternal({ user: caller })) {
       return { error: "Only existing admins can add new admins." };
     }
-    if (await this._isAdminInternal(user)) {
+    if (await this._isAdminInternal({ user })) {
       return { error: `User '${user}' is already an admin.` };
     }
 
@@ -383,10 +383,10 @@ export default class EventDirectoryConcept {
   async removeAdmin(
     { caller, user }: { caller: User; user: User },
   ): Promise<Empty | { error: string }> {
-    if (!await this._isAdminInternal(caller)) {
+    if (!await this._isAdminInternal({ user: caller })) {
       return { error: "Only admins can remove other admins." };
     }
-    if (!await this._isAdminInternal(user)) {
+    if (!await this._isAdminInternal({ user })) {
       return { error: `User '${user}' is not an admin.` };
     }
     if (caller === user) {
@@ -493,7 +493,7 @@ export default class EventDirectoryConcept {
    * effects: Returns true if the user is an admin, false otherwise.
    */
   async _isAdmin({ user }: { user: User }): Promise<{ isAdmin: boolean }> {
-    const isAdmin = await this._isAdminInternal(user);
+    const isAdmin = await this._isAdminInternal({ user });
     return { isAdmin };
   }
 
@@ -518,7 +518,7 @@ export default class EventDirectoryConcept {
    * effects: Returns all events with their full details.
    */
   async getAllEvents({ caller }: { caller: User }): Promise<EventDocument[] | { error: string }> {
-    if (!await this._isAdminInternal(caller)) {
+    if (!await this._isAdminInternal({ user: caller })) {
       return { error: "Only admins can retrieve all events." };
     }
 

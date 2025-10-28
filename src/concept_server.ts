@@ -95,7 +95,7 @@ async function main() {
         Object.getPrototypeOf(instance),
       )
         .filter((name) =>
-          name !== "constructor" && typeof instance[name] === "function"
+          name !== "constructor" && typeof instance[name] === "function" && !name.startsWith("_isAdminInternal")
         );
 
       for (const methodName of methodNames) {

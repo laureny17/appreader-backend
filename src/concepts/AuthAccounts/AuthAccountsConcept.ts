@@ -121,7 +121,7 @@ export default class AuthAccountsConcept {
    * @param {User} userId - The ID of the user.
    * @returns {Account | null} The account object if found, otherwise null.
    */
-  async _getAccountByUserId(userId: User): Promise<Account | null> {
+  async _getAccountByUserId({ userId }: { userId: User }): Promise<Account | null> {
     return await this.accounts.findOne({ _id: userId });
   }
 
@@ -131,7 +131,7 @@ export default class AuthAccountsConcept {
    * @param {string} email - The email of the account.
    * @returns {Account | null} The account object if found, otherwise null.
    */
-  async _getAccountByEmail(email: string): Promise<Account | null> {
+  async _getAccountByEmail({ email }: { email: string }): Promise<Account | null> {
     return await this.accounts.findOne({ email });
   }
 
@@ -141,7 +141,7 @@ export default class AuthAccountsConcept {
    * @param {User} userId - The ID of the user.
    * @returns {string | null} The name of the user if found, otherwise null.
    */
-  async _getNameByUserId(userId: User): Promise<string | null> {
+  async _getNameByUserId({ userId }: { userId: User }): Promise<string | null> {
     const account = await this.accounts.findOne({ _id: userId });
     return account ? account.name : null;
   }
@@ -152,7 +152,7 @@ export default class AuthAccountsConcept {
    * @param {User} userId - The ID of the user.
    * @returns {{name: string, email: string} | null} The account details without password hash if found, otherwise null.
    */
-  async _getAccountByIdSafe(userId: User): Promise<{name: string; email: string} | null> {
+  async _getAccountByIdSafe({ userId }: { userId: User }): Promise<{name: string; email: string} | null> {
     const account = await this.accounts.findOne({ _id: userId });
     if (!account) return null;
     return {

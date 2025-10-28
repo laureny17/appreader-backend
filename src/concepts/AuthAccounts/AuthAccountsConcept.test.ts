@@ -38,9 +38,9 @@ Deno.test("AuthAccountsConcept functionality", async (testContext) => {
         registeredUserId = registerResult.user;
 
         // Verify internal state
-        const registeredAccount = await authAccounts._getAccountByUserId(
-          registeredUserId,
-        );
+        const registeredAccount = await authAccounts._getAccountByUserId({
+          userId: registeredUserId,
+        });
         assertExists(
           registeredAccount,
           "Account should be found by user ID after registration",
@@ -61,9 +61,9 @@ Deno.test("AuthAccountsConcept functionality", async (testContext) => {
         assertEquals(loginResult.user, registeredUserId);
 
         // Verify another internal state query
-        const fetchedAccountByEmail = await authAccounts._getAccountByEmail(
+        const fetchedAccountByEmail = await authAccounts._getAccountByEmail({
           email,
-        );
+        });
         assertExists(fetchedAccountByEmail);
         assertEquals(fetchedAccountByEmail?._id, registeredUserId);
 
@@ -208,7 +208,7 @@ Deno.test("AuthAccountsConcept functionality", async (testContext) => {
         assert("user" in registerResult);
         const userId = registerResult.user;
 
-        const retrievedName = await authAccounts._getNameByUserId(userId);
+        const retrievedName = await authAccounts._getNameByUserId({ userId });
         assertEquals(retrievedName, name);
       },
     );
@@ -217,7 +217,7 @@ Deno.test("AuthAccountsConcept functionality", async (testContext) => {
       "_getNameByUserId returns null for non-existent user",
       async () => {
         const nonExistentUserId = freshID();
-        const result = await authAccounts._getNameByUserId(nonExistentUserId);
+        const result = await authAccounts._getNameByUserId({ userId: nonExistentUserId });
         assertEquals(result, null);
       },
     );
@@ -233,7 +233,7 @@ Deno.test("AuthAccountsConcept functionality", async (testContext) => {
         assert("user" in registerResult);
         const userId = registerResult.user;
 
-        const accountSafe = await authAccounts._getAccountByIdSafe(userId);
+        const accountSafe = await authAccounts._getAccountByIdSafe({ userId });
         assert(accountSafe !== null);
         assertEquals(accountSafe!.name, name);
         assertEquals(accountSafe!.email, email);
@@ -246,7 +246,7 @@ Deno.test("AuthAccountsConcept functionality", async (testContext) => {
       "_getAccountByIdSafe returns null for non-existent user",
       async () => {
         const nonExistentUserId = freshID();
-        const result = await authAccounts._getAccountByIdSafe(nonExistentUserId);
+        const result = await authAccounts._getAccountByIdSafe({ userId: nonExistentUserId });
         assertEquals(result, null);
       },
     );
