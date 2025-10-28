@@ -26,11 +26,13 @@ interface RedFlagDoc {
 
 interface CommentDoc {
   _id: ID;
-  review: ID;
+  application: ID;
   author: ID;
   text: string;
   quotedSnippet: string;
+  timestamp: Date;
 }
+
 
 Deno.test("ReviewRecords Concept", async (t) => {
   // Test Case: Fulfills principle: user can submit, edit, flag, and comment on reviews
@@ -183,60 +185,7 @@ Deno.test("ReviewRecords Concept", async (t) => {
       assertEquals(storedFlag.author, userId);
       console.log("Add Red Flag: OK");
 
-      // --- Action 7: Add a comment ---
-      // principle: "and write comments for other users to see."
-      const commentText = "Great app overall!";
-      const quotedSnippet = "Highly recommend.";
-      const addCommentResult = await reviewRecords.addComment({
-        author: freshID() as ID, // A different user comments
-        review: reviewId,
-        text: commentText,
-        quotedSnippet: quotedSnippet,
-      });
-
-      // Assert comment addition was successful
-      if ("error" in addCommentResult) {
-        throw new Error(`addComment failed: ${addCommentResult.error}`);
-      }
-      const commentId = addCommentResult.comment;
-      assertExists(commentId);
-      const commenterId = addCommentResult.comment; // Store commenter ID for later edit/delete
-
-      // Verify the comment exists in the database
-      const storedComment = await db.collection<CommentDoc>(
-        "ReviewRecords.comments",
-      ).findOne({ _id: commentId });
-      assertExists(storedComment);
-      assertEquals(storedComment.review, reviewId);
-      // NOTE: `addCommentResult.comment` returns the comment ID, not the author.
-      // Need to fetch `storedComment` to get the author correctly.
-      assertExists(storedComment.author); // Ensure author exists
-      assertEquals(storedComment.text, commentText);
-      assertEquals(storedComment.quotedSnippet, quotedSnippet);
-      console.log("Add Comment: OK");
-
-      // --- Action 8: Edit the comment ---
-      const newCommentText = "Really great app, actually!";
-      const editCommentResult = await reviewRecords.editComment({
-        author: storedComment.author, // Use the actual commenter's ID
-        comment: commentId,
-        newText: newCommentText,
-      });
-      if ("error" in editCommentResult) {
-        throw new Error(`editComment failed: ${editCommentResult.error}`);
-      }
-      assertEquals(editCommentResult.success, true);
-
-      // Verify the comment text was updated
-      const updatedComment = await db.collection<CommentDoc>(
-        "ReviewRecords.comments",
-      ).findOne({ _id: commentId });
-      assertExists(updatedComment);
-      assertEquals(updatedComment.text, newCommentText);
-      assertEquals(updatedComment.quotedSnippet, quotedSnippet); // quotedSnippet remains unchanged
-      console.log("Edit Comment: OK");
-
-      // --- Action 9: Remove the red flag ---
+      // --- Action 7: Remove the red flag ---
       const removeFlagResult = await reviewRecords.removeRedFlag({
         author: userId,
         review: reviewId,
@@ -252,23 +201,6 @@ Deno.test("ReviewRecords Concept", async (t) => {
       ).findOne({ _id: flagId });
       assertEquals(deletedFlag, null);
       console.log("Remove Red Flag: OK");
-
-      // --- Action 10: Delete the comment ---
-      const deleteCommentResult = await reviewRecords.deleteComment({
-        author: storedComment.author, // Use the actual commenter's ID
-        comment: commentId,
-      });
-      if ("error" in deleteCommentResult) {
-        throw new Error(`deleteComment failed: ${deleteCommentResult.error}`);
-      }
-      assertEquals(deleteCommentResult.success, true);
-
-      // Verify the comment is deleted
-      const deletedComment = await db.collection<CommentDoc>(
-        "ReviewRecords.comments",
-      ).findOne({ _id: commentId });
-      assertEquals(deletedComment, null);
-      console.log("Delete Comment: OK");
 
       await client.close();
     },
@@ -411,126 +343,6 @@ Deno.test("ReviewRecords Concept", async (t) => {
     },
   );
 
-  await t.step(
-    "addComment requires non-empty text and quotedSnippet",
-    async () => {
-      const [db, client] = await testDb();
-      const reviewRecords = new ReviewRecordsConcept(db);
-
-      const author = freshID() as ID;
-      const app = freshID() as ID;
-      const review = (await reviewRecords.submitReview({
-        author: author,
-        application: app,
-        currentTime: new Date(),
-      })) as { review: ID };
-
-      const emptyTextResult = await reviewRecords.addComment({
-        author: freshID() as ID,
-        review: review.review,
-        text: " ", // Empty string
-        quotedSnippet: "snippet",
-      });
-      if (!("error" in emptyTextResult)) {
-        throw new Error("addComment with empty text should have failed");
-      }
-      assertEquals(emptyTextResult.error, "Comment text cannot be empty");
-
-      const emptySnippetResult = await reviewRecords.addComment({
-        author: freshID() as ID,
-        review: review.review,
-        text: "text",
-        quotedSnippet: " ", // Empty string
-      });
-      if (!("error" in emptySnippetResult)) {
-        throw new Error("addComment with empty snippet should have failed");
-      }
-      assertEquals(emptySnippetResult.error, "Quoted snippet cannot be empty");
-
-      await client.close();
-    },
-  );
-
-  await t.step(
-    "editComment requires author to be the comment's author",
-    async () => {
-      const [db, client] = await testDb();
-      const reviewRecords = new ReviewRecordsConcept(db);
-
-      const reviewAuthor = freshID() as ID;
-      const commentAuthor = freshID() as ID;
-      const otherUser = freshID() as ID;
-      const app = freshID() as ID;
-      const review = (await reviewRecords.submitReview({
-        author: reviewAuthor,
-        application: app,
-        currentTime: new Date(),
-      })) as { review: ID };
-      const comment = (await reviewRecords.addComment({
-        author: commentAuthor,
-        review: review.review,
-        text: "initial",
-        quotedSnippet: "q",
-      })) as { comment: ID };
-
-      const editResult = await reviewRecords.editComment({
-        author: otherUser,
-        comment: comment.comment,
-        newText: "new text",
-      });
-
-      if (!("error" in editResult)) {
-        throw new Error("editComment by non-author should have failed");
-      }
-      assertExists(editResult.error);
-      assertEquals(
-        editResult.error,
-        "Only the author of the comment can edit it",
-      );
-
-      await client.close();
-    },
-  );
-
-  await t.step(
-    "deleteComment requires author to be the comment's author",
-    async () => {
-      const [db, client] = await testDb();
-      const reviewRecords = new ReviewRecordsConcept(db);
-
-      const reviewAuthor = freshID() as ID;
-      const commentAuthor = freshID() as ID;
-      const otherUser = freshID() as ID;
-      const app = freshID() as ID;
-      const review = (await reviewRecords.submitReview({
-        author: reviewAuthor,
-        application: app,
-        currentTime: new Date(),
-      })) as { review: ID };
-      const comment = (await reviewRecords.addComment({
-        author: commentAuthor,
-        review: review.review,
-        text: "initial",
-        quotedSnippet: "q",
-      })) as { comment: ID };
-
-      const deleteResult = await reviewRecords.deleteComment({
-        author: otherUser,
-        comment: comment.comment,
-      });
-
-      if (!("error" in deleteResult)) {
-        throw new Error("deleteComment by non-author should have failed");
-      }
-      assertExists(deleteResult.error);
-      assertEquals(
-        deleteResult.error,
-        "Only the author of the comment can delete it",
-      );
-
-      await client.close();
-    },
-  );
 
   await t.step(
     "_getReviewsWithScoresByApplication returns all reviews and scores for an application",
@@ -731,11 +543,14 @@ Deno.test("ReviewRecords Concept", async (t) => {
         activeTime: 120, // 2 minutes
       });
 
-      assert("review" in reviewResult, "Should return review ID");
+      if ("error" in reviewResult) {
+        throw new Error(`submitReview failed: ${reviewResult.error}`);
+      }
+      const reviewId = reviewResult.review;
 
       // Check that activeTime was stored
       const storedReview = await db.collection("ReviewRecords.reviews").findOne({
-        _id: reviewResult.review
+        _id: reviewId
       });
       assertEquals(storedReview?.activeTime, 120);
 
@@ -763,11 +578,12 @@ Deno.test("ReviewRecords Concept", async (t) => {
       assert("review" in reviewResult, "Should return review ID");
 
       // Get reviews for this application
-      const reviews = await reviewRecords._getReviewsWithScoresByApplication({
+      const reviewsResult = await reviewRecords._getReviewsWithScoresByApplication({
         application: app
       });
 
-      assert(Array.isArray(reviews), "Should return array");
+      assert(!("error" in reviewsResult), "Should return array");
+      const reviews = reviewsResult as Array<any>;
       assertEquals(reviews.length, 1, "Should have 1 review");
       assertEquals(reviews[0].activeTime, 180, "Should include activeTime");
 
@@ -792,13 +608,444 @@ Deno.test("ReviewRecords Concept", async (t) => {
       });
 
       // Get reviews for this application
-      const reviews = await reviewRecords._getReviewsWithScoresByApplication({
+      const reviewsResult = await reviewRecords._getReviewsWithScoresByApplication({
         application: app
       });
 
-      assert(Array.isArray(reviews), "Should return array");
+      assert(!("error" in reviewsResult), "Should return array");
+      const reviews = reviewsResult as Array<any>;
       assertEquals(reviews.length, 1, "Should have 1 review");
       assertEquals(reviews[0].activeTime, 0, "Should default to 0");
+
+      await client.close();
+    },
+  );
+
+  // --- User Comment Tests ---
+
+  await t.step(
+    "addComment creates a comment for an application",
+    async () => {
+      const [db, client] = await testDb();
+      const reviewRecords = new ReviewRecordsConcept(db);
+
+      const author = freshID() as ID;
+      const app = freshID() as ID;
+
+      // Create an application in ApplicationStorage
+      await db.collection("ApplicationStorage.applications").insertOne({
+        _id: app as any,
+        event: freshID() as any,
+        applicantID: "test",
+        applicantYear: "2023",
+        answers: ["answer1"],
+      });
+
+      const commentText = "This is a test comment";
+      const quotedSnippet = "Snippet text";
+
+      const addResult = await reviewRecords.addComment({
+        author,
+        application: app,
+        text: commentText,
+        quotedSnippet,
+      });
+
+      if ("error" in addResult) {
+        throw new Error(`addComment failed: ${addResult.error}`);
+      }
+
+      const commentId = addResult.comment;
+      assertExists(commentId);
+
+      // Verify the comment exists in the database
+      const storedComment = await db.collection<CommentDoc>(
+        "ReviewRecords.comments",
+      ).findOne({ _id: commentId });
+      assertExists(storedComment);
+      assertEquals(storedComment.author, author);
+      assertEquals(storedComment.application, app);
+      assertEquals(storedComment.text, commentText);
+      assertEquals(storedComment.quotedSnippet, quotedSnippet);
+      assertExists(storedComment.timestamp);
+
+      await client.close();
+    },
+  );
+
+  await t.step(
+    "addComment requires non-empty text",
+    async () => {
+      const [db, client] = await testDb();
+      const reviewRecords = new ReviewRecordsConcept(db);
+
+      const author = freshID() as ID;
+      const app = freshID() as ID;
+
+      // Create an application
+      await db.collection("ApplicationStorage.applications").insertOne({
+        _id: app as any,
+        event: freshID() as any,
+        applicantID: "test",
+        applicantYear: "2023",
+        answers: ["answer1"],
+      });
+
+      const emptyTextResult = await reviewRecords.addComment({
+        author,
+        application: app,
+        text: " ",
+        quotedSnippet: "snippet",
+      });
+
+      if (!("error" in emptyTextResult)) {
+        throw new Error("addComment with empty text should have failed");
+      }
+      assertEquals(emptyTextResult.error, "Comment text cannot be empty");
+
+      await client.close();
+    },
+  );
+
+  await t.step(
+    "addComment requires application to exist",
+    async () => {
+      const [db, client] = await testDb();
+      const reviewRecords = new ReviewRecordsConcept(db);
+
+      const author = freshID() as ID;
+      const nonExistentApp = freshID() as ID;
+
+      const result = await reviewRecords.addComment({
+        author,
+        application: nonExistentApp,
+        text: "Some text",
+        quotedSnippet: "snippet",
+      });
+
+      if (!("error" in result)) {
+        throw new Error("addComment with non-existent application should have failed");
+      }
+      assertEquals(result.error, "Application not found, cannot add comment");
+
+      await client.close();
+    },
+  );
+
+  await t.step(
+    "_getCommentsByApplication returns all comments for an application",
+    async () => {
+      const [db, client] = await testDb();
+      const reviewRecords = new ReviewRecordsConcept(db);
+
+      const author1 = freshID() as ID;
+      const author2 = freshID() as ID;
+      const app = freshID() as ID;
+
+      // Create an application
+      await db.collection("ApplicationStorage.applications").insertOne({
+        _id: app as any,
+        event: freshID() as any,
+        applicantID: "test",
+        applicantYear: "2023",
+        answers: ["answer1"],
+      });
+
+      // Add two comments
+      const comment1 = await reviewRecords.addComment({
+        author: author1,
+        application: app,
+        text: "First comment",
+        quotedSnippet: "snippet1",
+      });
+
+      const comment2 = await reviewRecords.addComment({
+        author: author2,
+        application: app,
+        text: "Second comment",
+        quotedSnippet: "snippet2",
+      });
+
+      assert("comment" in comment1 && "comment" in comment2);
+
+      // Wait a bit to ensure timestamps are different
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      // Get comments
+      const comments = await reviewRecords._getCommentsByApplication({
+        application: app,
+      });
+
+      assertEquals(comments.length, 2, "Should have 2 comments");
+      assertEquals(comments[0].author, author1.toString());
+      assertEquals(comments[1].author, author2.toString());
+      assertEquals(comments[0].text, "First comment");
+      assertEquals(comments[1].text, "Second comment");
+
+      await client.close();
+    },
+  );
+
+  await t.step(
+    "_getCommentsByApplication returns empty array for application with no comments",
+    async () => {
+      const [db, client] = await testDb();
+      const reviewRecords = new ReviewRecordsConcept(db);
+
+      const app = freshID() as ID;
+
+      // Create an application
+      await db.collection("ApplicationStorage.applications").insertOne({
+        _id: app as any,
+        event: freshID() as any,
+        applicantID: "test",
+        applicantYear: "2023",
+        answers: ["answer1"],
+      });
+
+      const comments = await reviewRecords._getCommentsByApplication({
+        application: app,
+      });
+
+      assertEquals(comments.length, 0, "Should return empty array");
+
+      await client.close();
+    },
+  );
+
+  await t.step(
+    "editComment updates comment text",
+    async () => {
+      const [db, client] = await testDb();
+      const reviewRecords = new ReviewRecordsConcept(db);
+
+      const author = freshID() as ID;
+      const app = freshID() as ID;
+
+      // Create an application
+      await db.collection("ApplicationStorage.applications").insertOne({
+        _id: app as any,
+        event: freshID() as any,
+        applicantID: "test",
+        applicantYear: "2023",
+        answers: ["answer1"],
+      });
+
+      const addResult = await reviewRecords.addComment({
+        author,
+        application: app,
+        text: "Original text",
+        quotedSnippet: "snippet",
+      });
+
+      if ("error" in addResult) {
+        throw new Error(`addComment failed: ${addResult.error}`);
+      }
+
+      // Edit the comment
+      const editResult = await reviewRecords.editComment({
+        author,
+        comment: addResult.comment,
+        newText: "Updated text",
+      });
+
+      if ("error" in editResult) {
+        throw new Error(`editComment failed: ${editResult.error}`);
+      }
+      assertEquals(editResult.success, true);
+
+      // Verify the comment was updated
+      const updatedComment = await db.collection<CommentDoc>(
+        "ReviewRecords.comments",
+      ).findOne({ _id: addResult.comment });
+      assertExists(updatedComment);
+      assertEquals(updatedComment.text, "Updated text");
+
+      await client.close();
+    },
+  );
+
+  await t.step(
+    "editComment requires author to be the comment's author",
+    async () => {
+      const [db, client] = await testDb();
+      const reviewRecords = new ReviewRecordsConcept(db);
+
+      const commentAuthor = freshID() as ID;
+      const otherUser = freshID() as ID;
+      const app = freshID() as ID;
+
+      // Create an application
+      await db.collection("ApplicationStorage.applications").insertOne({
+        _id: app as any,
+        event: freshID() as any,
+        applicantID: "test",
+        applicantYear: "2023",
+        answers: ["answer1"],
+      });
+
+      const addResult = await reviewRecords.addComment({
+        author: commentAuthor,
+        application: app,
+        text: "Original text",
+        quotedSnippet: "snippet",
+      });
+
+      if ("error" in addResult) {
+        throw new Error(`addComment failed: ${addResult.error}`);
+      }
+
+      // Try to edit as another user
+      const editResult = await reviewRecords.editComment({
+        author: otherUser,
+        comment: addResult.comment,
+        newText: "Updated text",
+      });
+
+      if (!("error" in editResult)) {
+        throw new Error("editComment by non-author should have failed");
+      }
+      assertEquals(editResult.error, "Only the author of the comment can edit it");
+
+      await client.close();
+    },
+  );
+
+  await t.step(
+    "editComment requires non-empty newText",
+    async () => {
+      const [db, client] = await testDb();
+      const reviewRecords = new ReviewRecordsConcept(db);
+
+      const author = freshID() as ID;
+      const app = freshID() as ID;
+
+      // Create an application
+      await db.collection("ApplicationStorage.applications").insertOne({
+        _id: app as any,
+        event: freshID() as any,
+        applicantID: "test",
+        applicantYear: "2023",
+        answers: ["answer1"],
+      });
+
+      const addResult = await reviewRecords.addComment({
+        author,
+        application: app,
+        text: "Original text",
+        quotedSnippet: "snippet",
+      });
+
+      if ("error" in addResult) {
+        throw new Error(`addComment failed: ${addResult.error}`);
+      }
+
+      // Try to edit with empty text
+      const editResult = await reviewRecords.editComment({
+        author,
+        comment: addResult.comment,
+        newText: " ",
+      });
+
+      if (!("error" in editResult)) {
+        throw new Error("editComment with empty newText should have failed");
+      }
+      assertEquals(editResult.error, "New comment text cannot be empty");
+
+      await client.close();
+    },
+  );
+
+  await t.step(
+    "deleteComment deletes a comment",
+    async () => {
+      const [db, client] = await testDb();
+      const reviewRecords = new ReviewRecordsConcept(db);
+
+      const author = freshID() as ID;
+      const app = freshID() as ID;
+
+      // Create an application
+      await db.collection("ApplicationStorage.applications").insertOne({
+        _id: app as any,
+        event: freshID() as any,
+        applicantID: "test",
+        applicantYear: "2023",
+        answers: ["answer1"],
+      });
+
+      const addResult = await reviewRecords.addComment({
+        author,
+        application: app,
+        text: "Text to delete",
+        quotedSnippet: "snippet",
+      });
+
+      if ("error" in addResult) {
+        throw new Error(`addComment failed: ${addResult.error}`);
+      }
+
+      // Delete the comment
+      const deleteResult = await reviewRecords.deleteComment({
+        author,
+        comment: addResult.comment,
+      });
+
+      if ("error" in deleteResult) {
+        throw new Error(`deleteComment failed: ${deleteResult.error}`);
+      }
+      assertEquals(deleteResult.success, true);
+
+      // Verify the comment is deleted
+      const deletedComment = await db.collection<CommentDoc>(
+        "ReviewRecords.comments",
+      ).findOne({ _id: addResult.comment });
+      assertEquals(deletedComment, null);
+
+      await client.close();
+    },
+  );
+
+  await t.step(
+    "deleteComment requires author to be the comment's author",
+    async () => {
+      const [db, client] = await testDb();
+      const reviewRecords = new ReviewRecordsConcept(db);
+
+      const commentAuthor = freshID() as ID;
+      const otherUser = freshID() as ID;
+      const app = freshID() as ID;
+
+      // Create an application
+      await db.collection("ApplicationStorage.applications").insertOne({
+        _id: app as any,
+        event: freshID() as any,
+        applicantID: "test",
+        applicantYear: "2023",
+        answers: ["answer1"],
+      });
+
+      const addResult = await reviewRecords.addComment({
+        author: commentAuthor,
+        application: app,
+        text: "Text to delete",
+        quotedSnippet: "snippet",
+      });
+
+      if ("error" in addResult) {
+        throw new Error(`addComment failed: ${addResult.error}`);
+      }
+
+      // Try to delete as another user
+      const deleteResult = await reviewRecords.deleteComment({
+        author: otherUser,
+        comment: addResult.comment,
+      });
+
+      if (!("error" in deleteResult)) {
+        throw new Error("deleteComment by non-author should have failed");
+      }
+      assertEquals(deleteResult.error, "Only the author of the comment can delete it");
 
       await client.close();
     },

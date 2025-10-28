@@ -660,7 +660,8 @@
 "name": "string",
 "description": "string",
 "scaleMin": "number",
-"scaleMax": "number"
+"scaleMax": "number",
+"guidelines": ["string (optional)"]
 }
 ],
 "endDate": "Date (optional)"
@@ -759,7 +760,8 @@
 "name": "string",
 "description": "string",
 "scaleMin": "number",
-"scaleMax": "number"
+"scaleMax": "number",
+"guidelines": ["string (optional)"]
 }
 ],
 "eligibilityCriteria": ["string"],
@@ -923,7 +925,8 @@
 "name": "string",
 "description": "string",
 "scaleMin": "number",
-"scaleMax": "number"
+"scaleMax": "number",
+"guidelines": ["string (optional)"]
 }
 ],
 "eligibilityCriteria": ["string"],
@@ -967,7 +970,8 @@
 "name": "string",
 "description": "string",
 "scaleMin": "number",
-"scaleMax": "number"
+"scaleMax": "number",
+"guidelines": ["string (optional)"]
 }
 ],
 "eligibilityCriteria": ["string"],
@@ -1231,7 +1235,8 @@
 "name": "string",
 "description": "string",
 "scaleMin": "number",
-"scaleMax": "number"
+"scaleMax": "number",
+"guidelines": ["string (optional)"]
 }
 ],
 "eligibilityCriteria": ["string"],
@@ -1412,20 +1417,22 @@
 
 ### POST /api/ReviewRecords/addComment
 
-**Description:** Adds a comment to a review.
+**Description:** Adds a comment directly to an application.
 
 **Requirements:**
 
-- Both `text` and `quotedSnippet` are non-empty.
+- Application exists.
+- `text` is non-empty.
 
 **Effects:**
 
-- Creates a new Comment document.
+- Creates a new UserComment document linked to the application.
+- Returns the comment ID.
 
 **Request Body:**
 {
 "author": "ID",
-"review": "ID",
+"application": "ID",
 "text": "string",
 "quotedSnippet": "string"
 }
@@ -1448,7 +1455,7 @@
 
 **Requirements:**
 
-- Author is the comment’s author.
+- Author is the comment's author.
 - `newText` is non-empty.
 
 **Effects:**
@@ -1570,6 +1577,72 @@
 "application": "ID",
 "weightedAverage": "number",
 "numReviews": "number"
+}
+]
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
+### POST /api/ReviewRecords/\_getUserReviewProgress
+
+**Description:** Retrieves review progress for a user in an event.
+
+**Requirements:**
+
+- Event exists.
+
+**Effects:**
+
+- Returns the number of reviews completed and total reviews needed for the user.
+
+**Request Body:**
+{
+"user": "ID",
+"event": "ID"
+}
+
+**Success Response Body (Query):**
+{
+"reviewsCompleted": "number",
+"totalNeeded": "number"
+}
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
+### POST /api/ReviewRecords/\_getCommentsByApplication
+
+**Description:** Retrieves all comments for a specific application.
+
+**Requirements:**
+
+- Application exists (or return empty array).
+
+**Effects:**
+
+- Returns all comments associated with this application, ordered by timestamp.
+
+**Request Body:**
+{
+"application": "ID"
+}
+
+**Success Response Body (Query):**
+[
+{
+"_id": "string",
+"author": "string (user ID)",
+"text": "string",
+"quotedSnippet": "string",
+"timestamp": "string (ISO date)"
 }
 ]
 

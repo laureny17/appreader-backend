@@ -15,7 +15,7 @@ type User = ID;
 type Review = ID;
 type Score = ID; // Each Score document will have its own ID
 type RedFlag = ID; // Each RedFlag document will have its own ID
-type Comment = ID; // Each Comment document will have its own ID
+type Comment = ID; // Comment document ID
 
 /**
  * a set of Reviews with
@@ -58,17 +58,19 @@ interface RedFlagDoc {
 
 /**
  * a set of Comments with
- *   a review Review
+ *   an application Application
  *   an author User
  *   a text String
  *   a quotedSnippet String
+ *   a timestamp Date
  */
 interface CommentDoc {
   _id: Comment;
-  review: Review;
+  application: Application;
   author: User;
   text: string;
   quotedSnippet: string;
+  timestamp: Date;
 }
 
 export default class ReviewRecordsConcept {
@@ -275,112 +277,6 @@ export default class ReviewRecordsConcept {
     return { success: true };
   }
 
-  /**
-   * addComment (author: User, review: Review, text: String, quotedSnippet: String): (comment: Comment)
-   * requires: text is not an empty string and quotedSnippet is not an empty string
-   * effects: add comment with provided details to the set of comments, associated with this review
-   */
-  async addComment(
-    { author, review, text, quotedSnippet }: {
-      author: User;
-      review: Review;
-      text: string;
-      quotedSnippet: string;
-    },
-  ): Promise<{ comment: Comment } | { error: string }> {
-    // requires: text is not an empty string and quotedSnippet is not an empty string
-    if (!text.trim()) {
-      return { error: "Comment text cannot be empty" };
-    }
-    if (!quotedSnippet.trim()) {
-      return { error: "Quoted snippet cannot be empty" };
-    }
-
-    // Ensure the review exists before adding a comment to it (implicit requirement for data integrity)
-    const targetReview = await this.reviews.findOne({ _id: review });
-    if (!targetReview) {
-      return { error: "Review not found, cannot add comment" };
-    }
-
-    // effects: add comment with provided details to the set of comments, associated with this review
-    const newCommentId = freshID() as Comment;
-    await this.comments.insertOne({
-      _id: newCommentId,
-      review,
-      author,
-      text,
-      quotedSnippet,
-    });
-
-    return { comment: newCommentId };
-  }
-
-  /**
-   * editComment (author: User, comment: Comment, newText: String)
-   * requires: author is the author of the comment
-   * effects: update the comment’s text to the provided values
-   */
-  async editComment(
-    { author, comment, newText }: {
-      author: User;
-      comment: Comment;
-      newText: string;
-    },
-  ): Promise<{ success: true } | { error: string }> {
-    // requires: author is the author of the comment
-    const targetComment = await this.comments.findOne({ _id: comment });
-    if (!targetComment) {
-      return { error: "Comment not found" };
-    }
-    if (targetComment.author !== author) {
-      return { error: "Only the author of the comment can edit it" };
-    }
-    // Also add a check for newText not being empty, similar to addComment
-    if (!newText.trim()) {
-      return { error: "New comment text cannot be empty" };
-    }
-
-    // effects: update the comment’s text to the provided values
-    const updateResult = await this.comments.updateOne(
-      { _id: comment },
-      { $set: { text: newText } },
-    );
-
-    if (updateResult.modifiedCount === 0) {
-      // This could mean the comment was found but the text was the same, or the update failed.
-      // For simplicity, we'll return an error here, but a more nuanced design might differentiate.
-      return { error: "Failed to update comment text or no change detected" };
-    }
-
-    return { success: true };
-  }
-
-  /**
-   * deleteComment(author: User, comment: Comment)
-   * requires: author is the author of the comment
-   * effects: delete the comment
-   */
-  async deleteComment(
-    { author, comment }: { author: User; comment: Comment },
-  ): Promise<{ success: true } | { error: string }> {
-    // requires: author is the author of the comment
-    const targetComment = await this.comments.findOne({ _id: comment });
-    if (!targetComment) {
-      return { error: "Comment not found" };
-    }
-    if (targetComment.author !== author) {
-      return { error: "Only the author of the comment can delete it" };
-    }
-
-    // effects: delete the comment
-    const deleteResult = await this.comments.deleteOne({ _id: comment });
-    if (deleteResult.deletedCount === 0) {
-      // Should not happen if `targetComment` was found and then deleted, but good for safety.
-      return { error: "Failed to delete comment" };
-    }
-
-    return { success: true };
-  }
 
   /**
    * _getReviewsWithScoresByApplication (application: Application)
@@ -526,5 +422,169 @@ export default class ReviewRecordsConcept {
     }
 
     return results;
+  }
+
+  /**
+   * _getUserReviewProgress (user: User, event: Event)
+   * purpose: Returns the review progress for a user in an event
+   * effects: Returns count of reviews completed and total needed
+   */
+  async _getUserReviewProgress(
+    { user, event }: { user: User; event: Event },
+  ): Promise<{ reviewsCompleted: number; totalNeeded: number } | { error: string }> {
+    // Get all applications for this event
+    const applications = await this.db.collection("ApplicationStorage.applications")
+      .find({ event }).toArray();
+
+    if (applications.length === 0) {
+      return { reviewsCompleted: 0, totalNeeded: 0 };
+    }
+
+    const applicationIds = applications.map((app) => app._id);
+
+    // Count how many reviews this user has submitted for these applications
+    const reviewsCompleted = await this.reviews.countDocuments({
+      author: user,
+      application: { $in: applicationIds as any },
+    });
+
+    // Total needed is the number of applications
+    const totalNeeded = applications.length;
+
+    return { reviewsCompleted, totalNeeded };
+  }
+
+  /**
+   * addComment (author: User, application: Application, text: String, quotedSnippet: String): (comment: Comment)
+   * purpose: Add a comment directly to an application
+   * requires: Application exists, text is non-empty
+   * effects: Creates a new UserComment document linked to the application
+   */
+  async addComment(
+    { author, application, text, quotedSnippet }: {
+      author: User;
+      application: Application;
+      text: string;
+      quotedSnippet: string;
+    },
+  ): Promise<{ comment: Comment } | { error: string }> {
+    // requires: text is non-empty
+    if (!text.trim()) {
+      return { error: "Comment text cannot be empty" };
+    }
+
+    // requires: Application exists
+    const targetApplication = await this.db.collection("ApplicationStorage.applications")
+      .findOne({ _id: application });
+    if (!targetApplication) {
+      return { error: "Application not found, cannot add comment" };
+    }
+
+    // effects: Creates a new Comment document linked to the application
+    const newCommentId = freshID() as Comment;
+    await this.comments.insertOne({
+      _id: newCommentId,
+      application,
+      author,
+      text,
+      quotedSnippet,
+      timestamp: new Date(),
+    });
+
+    return { comment: newCommentId };
+  }
+
+  /**
+   * _getCommentsByApplication (application: Application)
+   * purpose: Retrieves all comments for a specific application
+   * effects: Returns all comments associated with this application, ordered by timestamp
+   */
+  async _getCommentsByApplication(
+    { application }: { application: Application },
+  ): Promise<Array<{
+    _id: string;
+    author: string;
+    text: string;
+    quotedSnippet: string;
+    timestamp: string;
+  }>> {
+    const comments = await this.comments.find({ application })
+      .sort({ timestamp: 1 })
+      .toArray();
+
+    return comments.map((comment) => ({
+      _id: comment._id.toString(),
+      author: comment.author.toString(),
+      text: comment.text,
+      quotedSnippet: comment.quotedSnippet,
+      timestamp: comment.timestamp.toISOString(),
+    }));
+  }
+
+  /**
+   * editComment (author: User, comment: Comment, newText: String)
+   * purpose: Edits a comment
+   * requires: Author is the author of the comment, newText is non-empty
+   * effects: Updates the comment text
+   */
+  async editComment(
+    { author, comment, newText }: {
+      author: User;
+      comment: Comment;
+      newText: string;
+    },
+  ): Promise<{ success: true } | { error: string }> {
+    // requires: author is the author of the comment
+    const targetComment = await this.comments.findOne({ _id: comment });
+    if (!targetComment) {
+      return { error: "Comment not found" };
+    }
+    if (targetComment.author !== author) {
+      return { error: "Only the author of the comment can edit it" };
+    }
+
+    // requires: newText is non-empty
+    if (!newText.trim()) {
+      return { error: "New comment text cannot be empty" };
+    }
+
+    // effects: update the comment's text to the provided values
+    const updateResult = await this.comments.updateOne(
+      { _id: comment },
+      { $set: { text: newText } },
+    );
+
+    if (updateResult.modifiedCount === 0) {
+      return { error: "Failed to update comment text or no change detected" };
+    }
+
+    return { success: true };
+  }
+
+  /**
+   * deleteComment (author: User, comment: Comment)
+   * purpose: Deletes a comment
+   * requires: Author is the author of the comment
+   * effects: Deletes the comment
+   */
+  async deleteComment(
+    { author, comment }: { author: User; comment: Comment },
+  ): Promise<{ success: true } | { error: string }> {
+    // requires: author is the author of the comment
+    const targetComment = await this.comments.findOne({ _id: comment });
+    if (!targetComment) {
+      return { error: "Comment not found" };
+    }
+    if (targetComment.author !== author) {
+      return { error: "Only the author of the comment can delete it" };
+    }
+
+    // effects: delete the comment
+    const deleteResult = await this.comments.deleteOne({ _id: comment });
+    if (deleteResult.deletedCount === 0) {
+      return { error: "Failed to delete comment" };
+    }
+
+    return { success: true };
   }
 }

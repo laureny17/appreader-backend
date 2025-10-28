@@ -26,6 +26,7 @@ interface RubricDimension {
   description: string;
   scaleMin: number;
   scaleMax: number;
+  guidelines?: string[]; // Optional array of scoring guidelines (one per score level)
 }
 
 /**
