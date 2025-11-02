@@ -167,8 +167,7 @@ export default class AuthAccountsConcept {
    * @param {User} caller - The ID of the user requesting the list.
    * @returns {Array<{_id: User, name: string, email: string}> | {error: string}} All users without password hashes, or an error if not an admin.
    */
-  async _getAllUsers(params: { caller: User }): Promise<Array<{_id: User; name: string; email: string}> | { error: string }> {
-    const caller = params.caller;
+  async _getAllUsers({ caller }: { caller: User }): Promise<Array<{_id: User; name: string; email: string}> | { error: string }> {
 
     // Check if caller is an admin by querying EventDirectory.admins
     const adminDoc = await this.db.collection("EventDirectory.admins").findOne({ _id: caller });

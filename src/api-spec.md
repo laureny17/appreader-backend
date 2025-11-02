@@ -1558,7 +1558,9 @@
 - Returns all events with their full details.
 
 **Request Body:**
-{}
+{
+"caller": "ID"
+}
 
 **Success Response Body (Query):**
 [
