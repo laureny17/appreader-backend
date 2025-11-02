@@ -1309,6 +1309,39 @@
 
 ---
 
+### POST /api/EventDirectory/\_getActiveVerifiedEventsForUser
+
+**Description:** Retrieves all ACTIVE events for which the user is a verified reader. This is similar to `_getVerifiedEventsForUser` but filters to only return events where `active === true`.
+
+**Requirements:**
+
+- User ID is valid.
+- Only returns events where the user is a verified reader AND the event is active.
+
+**Effects:**
+
+- Returns a list of event IDs and names for active events only.
+
+**Request Body:**
+{
+"user": "ID"
+}
+
+**Success Response Body (Query):**
+[
+{
+"event": "ID",
+"name": "string"
+}
+]
+
+**Error Response Body:**
+{
+"error": "string"
+}
+
+---
+
 ### POST /api/ApplicationAssignments/flagAndSkip
 
 **Description:** Flags an application and skips to the next one by creating a review record with a red flag.

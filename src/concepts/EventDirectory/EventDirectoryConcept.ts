@@ -474,6 +474,33 @@ export default class EventDirectoryConcept {
   }
 
   /**
+   * Query: _getActiveVerifiedEventsForUser
+   * purpose: Returns all active events where the user is a verified reader.
+   * effects: Returns an array of event summaries for active events only.
+   */
+  async _getActiveVerifiedEventsForUser(
+    { user }: { user: User },
+  ): Promise<{ event: Event; name: string }[]> {
+    // Find all memberships where user is verified
+    const memberships = await this.memberships.find({ user, verified: true })
+      .toArray();
+
+    if (memberships.length === 0) return [];
+
+    // Extract event IDs
+    const eventIds = memberships.map((m) => m.event);
+
+    // Fetch only active events
+    const events = await this.events.find({
+      _id: { $in: eventIds },
+      active: true,
+    }).toArray();
+
+    // Return array of simplified objects
+    return events.map((e) => ({ event: e._id, name: e.name }));
+  }
+
+  /**
    * Query: _getPendingReadersForEvent
    * purpose: Returns all unverified members for a given event.
    */
