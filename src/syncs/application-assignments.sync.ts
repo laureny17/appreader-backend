@@ -71,12 +71,12 @@ export const FlagAndSkipRequest: Sync = ({ request, caller, user, assignment, re
   then: actions([ApplicationAssignments.flagAndSkip, { user, assignment, reason }]),
 });
 
-export const FlagAndSkipResponseSuccess: Sync = ({ request, success }) => ({
+export const FlagAndSkipResponseSuccess: Sync = ({ request }) => ({
   when: actions(
     [Requesting.request, { path: "/ApplicationAssignments/flagAndSkip" }, { request }],
-    [ApplicationAssignments.flagAndSkip, {}, { success }],
+    [ApplicationAssignments.flagAndSkip, {}, {}],
   ),
-  then: actions([Requesting.respond, { request, success }]),
+  then: actions([Requesting.respond, { request }]),
 });
 
 export const FlagAndSkipResponseError: Sync = ({ request, error }) => ({
