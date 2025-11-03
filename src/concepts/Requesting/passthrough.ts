@@ -49,10 +49,9 @@ export const inclusions: Record<string, string> = {
   "/api/ApplicationAssignments/registerApplicationForAssignment": "idempotent action - concept handles checks",
   "/api/ApplicationAssignments/getNextAssignment": "action - concept validates assignment ownership internally",
   "/api/ApplicationAssignments/skipAssignment": "action - concept validates assignment belongs to user",
-  "/api/ApplicationAssignments/submitAndIncrement": "action - concept validates assignment belongs to user",
+  // NOTE: submitAndIncrement, flagAndSkip are excluded and handled by syncs (verify caller === user)
   "/api/ApplicationAssignments/abandonAssignment": "action - concept validates assignment exists",
   "/api/ApplicationAssignments/getCurrentAssignment": "query - concept validates assignment ownership",
-  "/api/ApplicationAssignments/flagAndSkip": "action - concept validates assignment belongs to user",
   "/api/ApplicationAssignments/_getSkipStatsForEvent": "query with event - stats are viewable",
   "/api/ApplicationAssignments/_getUserFlaggedApplications": "query with user/event - concept validates inputs",
 
@@ -87,15 +86,13 @@ export const inclusions: Record<string, string> = {
   // NOTE: Admin actions excluded for security (queries can't be excluded as they can't be in sync then clauses)
 
   // ========== ReviewRecords ==========
-  "/api/ReviewRecords/submitReview": "action - concept validates author hasn't already reviewed",
-  "/api/ReviewRecords/setScore": "action - concept validates author is review creator",
+  // NOTE: submitReview, setScore, deleteReview are excluded and handled by syncs (verify caller === author/user)
   "/api/ReviewRecords/editReview": "action - concept validates editor is review author",
   "/api/ReviewRecords/addRedFlag": "action - concept validates author is review author",
   "/api/ReviewRecords/removeRedFlag": "action - concept validates author is review author",
   "/api/ReviewRecords/addComment": "action - concept validates application exists",
   "/api/ReviewRecords/editComment": "action - concept validates author is comment author",
   "/api/ReviewRecords/deleteComment": "action - concept validates author is comment author",
-  "/api/ReviewRecords/deleteReview": "action - concept validates user is review author",
   "/api/ReviewRecords/_getReviewsWithScoresByApplication": "query with application - reviews visible to readers",
   "/api/ReviewRecords/_getCommentsByApplication": "query with application - comments visible to readers",
   "/api/ReviewRecords/_hasUserFlaggedApplication": "query with user/application - concept validates inputs",
@@ -151,6 +148,15 @@ export const exclusions: Array<string> = [
   "/api/EventDirectory/addAdmin", // Admin action - must verify caller is admin
   "/api/EventDirectory/removeAdmin", // Admin action - must verify caller is admin
   // NOTE: getAllEvents is a query and can't be excluded (queries can't be called in sync then clauses)
+
+  // ========== ReviewRecords - Critical User Actions ==========
+  "/api/ReviewRecords/submitReview", // User action - must verify caller === author
+  "/api/ReviewRecords/setScore", // User action - must verify caller === author
+  "/api/ReviewRecords/deleteReview", // User action - must verify caller === user
+
+  // ========== ApplicationAssignments - Critical User Actions ==========
+  "/api/ApplicationAssignments/submitAndIncrement", // User action - must verify caller === user
+  "/api/ApplicationAssignments/flagAndSkip", // User action - must verify caller === user
 
   // ========== ApplicationStorage - Admin Actions/Queries ==========
   // NOTE: All methods starting with "_" are treated as queries by the engine and cannot be

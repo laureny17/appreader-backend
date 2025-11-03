@@ -393,3 +393,249 @@ The engine has a technical limitation: **methods starting with `_` are treated a
 - ✅ EventDirectory admin actions (e.g., `createEvent`, `addReader`) don't start with `_`, so they **can** be excluded and have syncs
 
 This is why only the 8 EventDirectory admin actions have syncs - they're the only admin-only actions that don't start with `_`.
+
+---
+
+# ReviewRecords User Action Syncs
+
+All ReviewRecords critical user **actions** listed below are excluded and handled by syncs. These syncs verify that the HTTP `caller` matches the user parameter in the action (`caller === author` or `caller === user`).
+
+## Common Pattern
+
+All ReviewRecords user action syncs follow this pattern:
+1. **Request Sync**: Catches `Requesting.request`, verifies `caller === author/user` via `verifyCaller` helper, then calls the concept action
+2. **Response Syncs**: Two separate syncs handle success and error responses:
+   - **ResponseSuccess**: Catches successful action result and responds via `Requesting.respond`
+   - **ResponseError**: Catches error result (`{ error }`) and responds via `Requesting.respond`
+
+**Authentication Requirement:** `caller` must match the user parameter (`author` or `user`) in the action (verified via `verifyCaller` helper)
+
+---
+
+## POST /api/ReviewRecords/submitReview
+
+**Sync Name:** `SubmitReviewRequest` / `SubmitReviewResponseSuccess` / `SubmitReviewResponseError`
+
+**Description:** Submits a new review for an application (user action - caller must match author).
+
+**Request Body:**
+```json
+{
+  "caller": "ID",
+  "author": "ID",
+  "application": "ID",
+  "currentTime": "Date",
+  "activeTime": "number (optional)"
+}
+```
+
+**Success Response Body (Action):**
+```json
+{
+  "review": "ID"
+}
+```
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
+```
+
+**Note:** The `caller` must match `author`. The sync verifies this before allowing the action to proceed.
+
+---
+
+## POST /api/ReviewRecords/setScore
+
+**Sync Name:** `SetScoreRequest` / `SetScoreResponseSuccess` / `SetScoreResponseError`
+
+**Description:** Sets or updates a score for a criterion in a review (user action - caller must match author).
+
+**Request Body:**
+```json
+{
+  "caller": "ID",
+  "author": "ID",
+  "review": "ID",
+  "criterion": "string",
+  "value": "number"
+}
+```
+
+**Success Response Body (Action):**
+```json
+{
+  "application": "ID"
+}
+```
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
+```
+
+**Note:** The `caller` must match `author`. The sync verifies this before allowing the action to proceed.
+
+---
+
+## POST /api/ReviewRecords/deleteReview
+
+**Sync Name:** `DeleteReviewRequest` / `DeleteReviewResponseSuccess` / `DeleteReviewResponseError`
+
+**Description:** Deletes a review by its ID (user action - caller must match user).
+
+**Request Body:**
+```json
+{
+  "caller": "ID",
+  "reviewId": "ID",
+  "user": "ID"
+}
+```
+
+**Success Response Body (Action):**
+```json
+{
+  "success": true,
+  "message": "string"
+}
+```
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
+```
+
+**Note:** The `caller` must match `user`. The sync verifies this before allowing the action to proceed.
+
+---
+
+# ApplicationAssignments User Action Syncs
+
+All ApplicationAssignments critical user **actions** listed below are excluded and handled by syncs. These syncs verify that the HTTP `caller` matches the `user` parameter in the action.
+
+## Common Pattern
+
+All ApplicationAssignments user action syncs follow this pattern:
+1. **Request Sync**: Catches `Requesting.request`, verifies `caller === user` via `verifyCaller` helper, then calls the concept action
+2. **Response Syncs**: Two separate syncs handle success and error responses:
+   - **ResponseSuccess**: Catches successful action result and responds via `Requesting.respond`
+   - **ResponseError**: Catches error result (`{ error }`) and responds via `Requesting.respond`
+
+**Authentication Requirement:** `caller` must match the `user` parameter in the action (verified via `verifyCaller` helper)
+
+---
+
+## POST /api/ApplicationAssignments/submitAndIncrement
+
+**Sync Name:** `SubmitAndIncrementRequest` / `SubmitAndIncrementResponseSuccess` / `SubmitAndIncrementResponseError`
+
+**Description:** Submits a completed assignment and increments the read count (user action - caller must match user).
+
+**Request Body:**
+```json
+{
+  "caller": "ID",
+  "user": "ID",
+  "assignment": {
+    "_id": "ID",
+    "user": "ID",
+    "application": "ID",
+    "startTime": "Date",
+    "event": "ID"
+  },
+  "endTime": "Date",
+  "activeTime": "number (optional)"
+}
+```
+
+**Success Response Body (Action):**
+```json
+{
+  "application": "ID"
+}
+```
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
+```
+
+**Note:** The `caller` must match `user`. The sync verifies this before allowing the action to proceed.
+
+---
+
+## POST /api/ApplicationAssignments/flagAndSkip
+
+**Sync Name:** `FlagAndSkipRequest` / `FlagAndSkipResponseSuccess` / `FlagAndSkipResponseError`
+
+**Description:** Flags an application and skips to the next one (user action - caller must match user).
+
+**Request Body:**
+```json
+{
+  "caller": "ID",
+  "user": "ID",
+  "assignment": {
+    "_id": "ID",
+    "user": "ID",
+    "application": "ID",
+    "startTime": "Date",
+    "event": "ID"
+  },
+  "reason": "string (optional)"
+}
+```
+
+**Success Response Body (Action):**
+```json
+{
+  "success": true
+}
+```
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
+```
+
+**Note:** The `caller` must match `user`. The sync verifies this before allowing the action to proceed.
+
+---
+
+## Summary - Updated
+
+### Endpoints with Syncs (Excluded)
+- **8 EventDirectory admin actions** (excluded and handled by syncs):
+  1. `createEvent`
+  2. `activateEvent`
+  3. `inactivateEvent`
+  4. `updateEventConfig`
+  5. `addReader`
+  6. `removeReader`
+  7. `addAdmin`
+  8. `removeAdmin`
+
+- **3 ReviewRecords user actions** (excluded and handled by syncs):
+  1. `submitReview`
+  2. `setScore`
+  3. `deleteReview`
+
+- **2 ApplicationAssignments user actions** (excluded and handled by syncs):
+  1. `submitAndIncrement`
+  2. `flagAndSkip`
+
+- **Total: 33 syncs**:
+  - EventDirectory: 23 syncs (8 actions: 1×2 + 7×3)
+  - ReviewRecords: 9 syncs (3 actions × 3: Request + ResponseSuccess + ResponseError)
+  - ApplicationAssignments: 6 syncs (2 actions × 3: Request + ResponseSuccess + ResponseError)

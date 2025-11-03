@@ -212,7 +212,8 @@ export default class ApplicationAssignmentsConcept {
     const assignedApps = new Set(assignedNow.map((a) => a.application));
 
     // Eligible = same event, user hasn't read/skipped, and not currently assigned to someone else
-    const eligibleApps = await this.appStatus.find({
+    // First get apps that user hasn't read (not in readers set)
+    const candidateApps = await this.appStatus.find({
       event,
       readers: { $ne: user },
       ...(assignedApps.size > 0
@@ -221,6 +222,25 @@ export default class ApplicationAssignmentsConcept {
     })
       .sort({ readsCompleted: 1, application: 1 }) // deterministic tie-break for fewest reads
       .toArray();
+
+    // Additional filter: Also exclude applications where user already has a review
+    // This handles data consistency issues where review exists but user not in readers set
+    const ReviewRecordsConcept = (await import("../ReviewRecords/ReviewRecordsConcept.ts")).default;
+    const reviewRecords = new ReviewRecordsConcept(this.db);
+
+    const eligibleApps: typeof candidateApps = [];
+    for (const appStatus of candidateApps) {
+      // Check if user already has a review for this application
+      const existingReview = await reviewRecords.reviews.findOne({
+        author: user,
+        application: appStatus.application,
+      });
+
+      // Only include if no review exists (even if not in readers set, we check reviews as secondary check)
+      if (!existingReview) {
+        eligibleApps.push(appStatus);
+      }
+    }
 
     if (eligibleApps.length === 0) {
       return { error: "No eligible applications available for assignment." };
@@ -382,18 +402,31 @@ export default class ApplicationAssignmentsConcept {
     }
 
     // @effects: Create a review record with activeTime if provided
+    // Handle case where review already exists (e.g., from previous failed submission or setScore calls)
     if (activeTime !== undefined) {
       const reviewRecords = new (await import("../ReviewRecords/ReviewRecordsConcept.ts")).default(this.db);
-      const reviewResult = await reviewRecords.submitReview({
+
+      // Check if review already exists (handles case where review was created but assignment wasn't completed)
+      const existingReview = await reviewRecords.reviews.findOne({
         author: user,
         application: assignment.application,
-        currentTime: endTime,
-        activeTime: activeTime,
       });
 
-      if ("error" in reviewResult) {
-        return { error: `Failed to create review: ${reviewResult.error}` };
+      if (!existingReview) {
+        // No review exists - create one
+        const reviewResult = await reviewRecords.submitReview({
+          author: user,
+          application: assignment.application,
+          currentTime: endTime,
+          activeTime: activeTime,
+        });
+
+        if ("error" in reviewResult) {
+          return { error: `Failed to create review: ${reviewResult.error}` };
+        }
       }
+      // If review already exists, we skip creation but still proceed to complete the assignment
+      // This allows users to complete assignments even if review was created earlier
     }
 
     // @effects: Increment the number of completed reads for the application,
