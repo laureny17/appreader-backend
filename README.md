@@ -1,5 +1,11 @@
 # AppReader Backend
 
-[Frontend repo](https://github.com/laureny17/appreader-frontend)
+[Frontend Repo](https://github.com/laureny17/appreader-frontend)
 
-[Design changes (as of 10/28) from previous version](design-updates.md)
+[Demo Video](https://youtu.be/B9ZNS8VYbcI)
+
+[Final Design Document](write-ups/final_design_document.md)
+
+[Reflection](write-ups/reflection.md)
+
+[Demo Video Constrole Trace](write-ups/demo_video_console_trace.md)
