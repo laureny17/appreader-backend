@@ -72,11 +72,12 @@
 
 ### POST /api/AuthAccounts/\_getAccountByUserId
 
-**Description:** Retrieves an account by its user ID.
+**Description:** Retrieves an account by its user ID. **NOTE: This is a query endpoint (passthrough) - the concept verifies that the caller owns the account or is an admin.**
 
 **Requirements:**
 
 - The user ID exists.
+- `caller` matches `userId` (account owner), OR `caller` is an admin.
 
 **Effects:**
 
@@ -84,8 +85,11 @@
 
 **Request Body:**
 {
-"userId": "ID"
+"userId": "ID",
+"caller": "ID"
 }
+
+**Note:** Query endpoints remain included (passthrough) and concepts verify authorization internally. This endpoint will return an error if the caller is not authorized.
 
 **Success Response Body (Query):**
 {
@@ -104,11 +108,12 @@
 
 ### POST /api/AuthAccounts/\_getAccountByEmail
 
-**Description:** Retrieves an account by its email.
+**Description:** Retrieves an account by its email. **NOTE: This is a query endpoint (passthrough) - the concept verifies that the caller owns the account or is an admin.**
 
 **Requirements:**
 
 - An account with the given email exists.
+- `caller` matches the account's user ID, OR `caller` is an admin.
 
 **Effects:**
 
@@ -116,8 +121,11 @@
 
 **Request Body:**
 {
-"email": "string"
+"email": "string",
+"caller": "ID"
 }
+
+**Note:** Query endpoints remain included (passthrough) and concepts verify authorization internally. This endpoint will return an error if the caller is not authorized.
 
 **Success Response Body (Query):**
 {
@@ -193,7 +201,7 @@
 
 ### POST /api/AuthAccounts/\_getAllUsers
 
-**Description:** Retrieves all users in the system (for admin use).
+**Description:** Retrieves all users in the system (for admin use). **NOTE: This is a query endpoint (passthrough) - the concept verifies that the caller is an admin.**
 
 **Requirements:**
 
@@ -207,6 +215,8 @@
 {
 "caller": "ID"
 }
+
+**Note:** Query endpoints remain included (passthrough) and concepts verify authorization internally. This endpoint will return an error if the caller is not an admin.
 
 **Success Response Body (Query):**
 [
@@ -655,6 +665,8 @@
 "importedBy": "string (user ID)"
 }
 
+**Note:** This method starts with `_` and is treated as a query by the engine, so it remains included (passthrough). The concept verifies that `importedBy` is an admin.
+
 **Success Response Body (Action):**
 {
 "success": true,
@@ -676,11 +688,12 @@
 
 ### POST /api/ApplicationStorage/_getFlaggedApplications
 
-**Description:** Get all flagged applications for an event (for admin dashboard). This endpoint looks for applications that have been flagged by readers through the ReviewRecords system.
+**Description:** Get all flagged applications for an event (for admin dashboard). This endpoint looks for applications that have been flagged by readers through the ReviewRecords system. **NOTE: This is a query endpoint (passthrough) - the concept verifies that the caller is an admin.**
 
 **Requirements:**
 
 - Event exists
+- Caller must be an admin
 
 **Effects:**
 
@@ -691,8 +704,11 @@
 
 **Request Body:**
 {
-"event": "string (event ID)"
+"event": "string (event ID)",
+"caller": "string (user ID)"
 }
+
+**Note:** Query endpoints remain included (passthrough) and concepts verify authorization internally. This endpoint will return an error if the caller is not an admin.
 
 **Success Response Body (Query):**
 [
@@ -720,7 +736,7 @@
 
 ### POST /api/ApplicationStorage/_disqualifyApplication
 
-**Description:** Officially disqualify a flagged application (admin action).
+**Description:** Officially disqualify a flagged application (admin action). **NOTE: This method starts with `_` and is treated as a query by the engine, so it remains included (passthrough). The concept verifies authorization.**
 
 **Requirements:**
 
@@ -741,6 +757,8 @@
 "disqualifiedAt": "string (ISO date)"
 }
 
+**Note:** Methods starting with `_` are treated as queries by the engine and remain included (passthrough). The concept verifies that `disqualifiedBy` is an admin.
+
 **Success Response Body (Action):**
 {
 "success": true
@@ -755,7 +773,7 @@
 
 ### POST /api/ApplicationStorage/_removeFlag
 
-**Description:** Remove flag from an application (admin action). This endpoint removes the actual red flags from the ReviewRecords system.
+**Description:** Remove flag from an application (admin action). This endpoint removes the actual red flags from the ReviewRecords system. **NOTE: This method starts with `_` and is treated as a query by the engine, so it remains included (passthrough). The concept verifies authorization.**
 
 **Requirements:**
 
@@ -775,6 +793,8 @@
 "removedAt": "string (ISO date)"
 }
 
+**Note:** Methods starting with `_` are treated as queries by the engine and remain included (passthrough). The concept verifies that `removedBy` is an admin.
+
 **Success Response Body (Action):**
 {
 "success": true
@@ -789,7 +809,7 @@
 
 ### POST /api/ApplicationStorage/_undisqualifyApplication
 
-**Description:** Remove disqualification status from an application (admin action).
+**Description:** Remove disqualification status from an application (admin action). **NOTE: This method starts with `_` and is treated as a query by the engine, so it remains included (passthrough). The concept verifies authorization.**
 
 **Requirements:**
 
@@ -810,6 +830,8 @@
 "reason": "string (optional reason for un-disqualification)"
 }
 
+**Note:** Methods starting with `_` are treated as queries by the engine and remain included (passthrough). The concept verifies that `undisqualifiedBy` is an admin.
+
 **Success Response Body:**
 {
 "success": true,
@@ -825,11 +847,12 @@
 
 ### POST /api/ApplicationStorage/_getDisqualifiedApplications
 
-**Description:** Get all disqualified applications for CSV export.
+**Description:** Get all disqualified applications for CSV export. **NOTE: This is a query endpoint (passthrough) - the concept verifies that the caller is an admin.**
 
 **Requirements:**
 
 - Event exists
+- Caller must be an admin
 
 **Effects:**
 
@@ -838,8 +861,11 @@
 
 **Request Body:**
 {
-"event": "string (event ID)"
+"event": "string (event ID)",
+"caller": "string (user ID)"
 }
+
+**Note:** Query endpoints remain included (passthrough) and concepts verify authorization internally. This endpoint will return an error if the caller is not an admin.
 
 **Success Response Body (Query):**
 [
@@ -894,6 +920,7 @@
 "guidelines": ["string (optional)"]
 }
 ],
+"questions": ["string"],
 "endDate": "Date (optional)"
 }
 
@@ -969,22 +996,23 @@
 
 ### POST /api/EventDirectory/updateEventConfig
 
-**Description:** Updates event settings.
+**Description:** Updates event settings. All parameters except `caller` and `event` are optional. Only the parameters provided will be updated.
 
 **Requirements:**
 
 - Caller is admin.
 - Event exists.
+- At least one optional parameter must be provided (otherwise returns error: "No fields provided for update").
 
 **Effects:**
 
-- Updates `rubric`, `requiredReadsPerApp`, `eligibilityCriteria`, or `endDate` for the event.
+- Updates any of the following fields if provided: `rubric`, `requiredReadsPerApp`, `eligibilityCriteria`, `questions`, or `endDate`.
 
 **Request Body:**
 {
 "caller": "ID",
 "event": "ID",
-"requiredReadsPerApp": "number",
+"requiredReadsPerApp": "number (optional)",
 "rubric": [
 {
 "name": "string",
@@ -993,10 +1021,13 @@
 "scaleMax": "number",
 "guidelines": ["string (optional)"]
 }
-],
-"eligibilityCriteria": ["string"],
+] (optional),
+"eligibilityCriteria": ["string"] (optional),
+"questions": ["string"] (optional),
 "endDate": "Date (optional)"
 }
+
+**Note:** All optional parameters can be omitted. You can send only the parameters you want to update (e.g., only `{ caller, event, rubric }` to update just the rubric).
 
 **Success Response Body (Action):**
 {}
@@ -1075,7 +1106,7 @@
 **Requirements:**
 
 - Caller is admin.
-- Target user is not already admin.
+- Target user is not already an admin.
 
 **Effects:**
 
@@ -1095,20 +1126,25 @@
 "error": "string"
 }
 
+**Common Errors:**
+- `"Only existing admins can add new admins."` - Caller is not an admin
+- `"User 'ID' is already an admin."` - Target user is already an admin
+
 ---
 
 ### POST /api/EventDirectory/removeAdmin
 
-**Description:** Removes admin privileges.
+**Description:** Removes admin privileges from a user.
 
 **Requirements:**
 
 - Caller is admin.
-- User is admin.
+- Target user is currently an admin.
+- Cannot remove the last remaining admin (if there's only one admin and caller is trying to remove themselves or the only admin, this will fail).
 
 **Effects:**
 
-- Deletes user from admin collection.
+- Deletes user from admins collection.
 
 **Request Body:**
 {
@@ -1123,6 +1159,11 @@
 {
 "error": "string"
 }
+
+**Common Errors:**
+- `"Only admins can remove other admins."` - Caller is not an admin
+- `"User 'ID' is not an admin."` - Target user is not currently an admin
+- `"Cannot remove the last remaining admin."` - Attempting to remove the only admin in the system
 
 ---
 
@@ -1471,9 +1512,13 @@
 }
 
 **Success Response Body (Query):**
+[
 {
 "isAdmin": true | false
 }
+]
+
+**Note:** Query endpoints return arrays. The frontend should access `response[0].isAdmin` to get the admin status.
 
 **Error Response Body:**
 {
@@ -1580,7 +1625,7 @@
 
 ### POST /api/EventDirectory/getAllEvents
 
-**Description:** Retrieves all events in the system (admin only).
+**Description:** Retrieves all events in the system (admin only). **NOTE: This is a query endpoint (passthrough) - the concept verifies that the caller is an admin.**
 
 **Requirements:**
 
@@ -1594,6 +1639,8 @@
 {
 "caller": "ID"
 }
+
+**Note:** Query endpoints remain included (passthrough) and concepts verify authorization internally. This endpoint will return an error if the caller is not an admin.
 
 **Success Response Body (Query):**
 [

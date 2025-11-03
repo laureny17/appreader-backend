@@ -239,19 +239,20 @@ export default class EventDirectoryConcept {
     }
 
     const updateFields: Partial<EventDocument> = {};
-    if (requiredReadsPerApp !== undefined) {
+    // Handle null sentinel values from sync (sync can't pass undefined, uses null instead)
+    if (requiredReadsPerApp !== undefined && requiredReadsPerApp !== null) {
       updateFields.requiredReadsPerApp = requiredReadsPerApp;
     }
-    if (rubric !== undefined) {
+    if (rubric !== undefined && rubric !== null) {
       updateFields.rubric = rubric;
     }
-    if (eligibilityCriteria !== undefined) {
+    if (eligibilityCriteria !== undefined && eligibilityCriteria !== null) {
       updateFields.eligibilityCriteria = eligibilityCriteria;
     }
-    if (questions !== undefined) {
+    if (questions !== undefined && questions !== null) {
       updateFields.questions = questions;
     }
-    if (endDate !== undefined) {
+    if (endDate !== undefined && endDate !== null) {
       updateFields.endDate = endDate;
     }
 
@@ -518,10 +519,12 @@ export default class EventDirectoryConcept {
    * Query: _isAdmin (public version for API)
    * purpose: Checks if a user is an administrator.
    * effects: Returns true if the user is an admin, false otherwise.
+   *
+   * NOTE: Queries must return arrays per the concept framework.
    */
-  async _isAdmin({ user }: { user: User }): Promise<{ isAdmin: boolean }> {
+  async _isAdmin({ user }: { user: User }): Promise<{ isAdmin: boolean }[]> {
     const isAdmin = await this._isAdminInternal({ user });
-    return { isAdmin };
+    return [{ isAdmin }];
   }
 
   /**
